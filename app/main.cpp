@@ -54,20 +54,20 @@ void dumpMLIR(std::string input) {
     }
 }
 
-int main() {
-    // testParser("a = b + c;");
-    // testParser("return a + b * c;");
-    // testParser("return a(b, c(1));");
-    // testFnParser("fn add(a:int, b:int) { return a + b; }");
-    // testFnParser("fn calc(a:int,b:int){ c = 1 + exp(a); return sin(c*pi*b);}");
-  std::string pgm = R"(
-fn function(a:i64,b:i64){
-  c = a + b;
-  d = c * 2;
-  e = d + 1;
-  return e;
+void testModuleParser(std::string input) {
+    Lexer lexer(input);
+    auto tokens = lexer.tokenize();
+    Parser parser(tokens);
+    auto result = parser.parsemod();
+    if (result.isErr()) {
+        std::cout << "error: " << result.getError() << std::endl;
+    } else {
+        std::cout << "parsed successfully : " << result.getValue()->toString() << std::endl;
+    }
 }
-    )";
-    dumpMLIR(pgm);
+
+int main() {
+    testModuleParser("fn add(a:i32,b:i32){return a+b;} fn function(a:i64,b:i64){ c = a + b; d = c * 2; e = d + 1; return e; }");
+    testModuleParser("fn add(a:i32,b:i32){return a+b;}");
     return 0;
 }

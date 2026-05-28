@@ -18,6 +18,10 @@ void Parser::consume(uint32_t n) {
   pos_ += n;
 }
 
+bool Parser::isEOF() {
+  return pos_ >= tokens.size() || tokens[pos_].type == T_EOF;
+}
+
 Result<statement::StmtPtr, std::string> Parser::parse() { 
   // Result<expr::ExprPtr, std::string> result = parseExpr();
   Result<statement::StmtPtr, std::string> result = parseStmt();
@@ -26,6 +30,11 @@ Result<statement::StmtPtr, std::string> Parser::parse() {
 
 Result<fn::FunctionPtr, std::string> Parser::parsefn() {
   Result<fn::FunctionPtr, std::string> result = parseFunction();
+  return result;
+}
+
+Result<module::ModulePtr, std::string> Parser::parsemod() {
+  Result<module::ModulePtr, std::string> result = parseModule();
   return result;
 }
 
@@ -255,4 +264,16 @@ Result<fn::FunctionPtr, std::string> Parser::parseFunction() {
   }
   consume();
   return Result<fn::FunctionPtr, std::string>(std::make_unique<fn::Function>(name, std::move(args), std::move(body)));
+}
+
+Result<module::ModulePtr, std::string> Parser::parseModule() {
+  std::vector<fn::FunctionPtr> functions;
+  while (!isEOF()) {
+    auto result = parseFunction();
+    if (result.isErr()) {
+      return Result<module::ModulePtr, std::string>(result.getError());
+    }
+    functions.push_back(std::move(result.getValue()));
+  }
+  return Result<module::ModulePtr, std::string>(std::make_unique<module::Module>(std::move(functions)));
 }

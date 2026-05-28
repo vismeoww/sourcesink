@@ -237,3 +237,21 @@ namespace fn {
   };
   using FunctionPtr = std::unique_ptr<Function>;
 }
+
+namespace module {
+  class Module {
+    std::vector<fn::FunctionPtr> functions_;
+    public:
+      Module(std::vector<fn::FunctionPtr> functions) : functions_(std::move(functions)) {}
+      virtual ~Module() = default;
+      std::vector<fn::FunctionPtr>& functions()  { return functions_; }
+      std::string toString() const {
+        std::string functionsStr;
+        for (auto& fn : functions_) {
+          functionsStr += fn->toString() + ", ";
+        }
+        return "Module(" + functionsStr + ")";
+      }
+  };
+  using ModulePtr = std::unique_ptr<Module>;
+}

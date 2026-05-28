@@ -27,6 +27,7 @@ class Parser {
     Parser(std::vector<Token> tokens);
     Result<statement::StmtPtr, std::string> parse();
     Result<fn::FunctionPtr, std::string> parsefn();
+    Result<module::ModulePtr, std::string> parsemod();
 
   private:
     uint32_t pos_;
@@ -35,6 +36,7 @@ class Parser {
     // consuming tokens 
     Token curr();
     void  consume(uint32_t n=1);
+    bool isEOF(); 
     // functions for parsing
     Result<expr::ExprPtr, std::string> parseExpr();
     Result<expr::ExprPtr, std::string> parseTerm();
@@ -50,6 +52,8 @@ class Parser {
     Result<statement::StmtPtr, std::string> parseReturnStmt();
     // functions for parsing functions
     Result<fn::FunctionPtr, std::string> parseFunction();
+    // parse module 
+    Result<module::ModulePtr, std::string> parseModule();
     // functions for backtracking 
     void save();
     uint32_t restore();

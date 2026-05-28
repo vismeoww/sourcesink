@@ -4,13 +4,22 @@
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/MLIRContext.h"
 
+#include "mlir/Dialect/Func/IR/FuncOps.h"
+
 class MLIRGenImpl {
   public:
-    MLIRGenImpl(mlir::MLIRContext& context) : builder(&context) {}
+    MLIRGenImpl(mlir::MLIRContext& context);
     mlir::ModuleOp mlirgen(fn::FunctionPtr func);
-    void mlirGen(fn::FunctionPtr func);
+    mlir::ModuleOp mlirgen(module::ModulePtr module);
+    mlir::func::FuncOp mlirGen(fn::FunctionPtr func);
+    mlir::Value processStmt(statement::StmtPtr stmt);
     mlir::Value genExpr(expr::ExprPtr expr);
-    void processStmt(statement::StmtPtr stmt);
+    // processing each expr 
+    mlir::Value processIntExpr(expr::IntValue* intExpr);
+    mlir::Value processFloatExpr(expr::FloatValue* floatExpr);
+    mlir::Value processIdentExpr(expr::Ident* identExpr);
+    mlir::Value processBinExpr(expr::BinOp* binExpr);
+    mlir::Value processFnCall(expr::FunctionCall* fnCall);
   private:
     mlir::OpBuilder builder;
     mlir::ModuleOp module;

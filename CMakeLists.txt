@@ -36,6 +36,7 @@ add_library(lib
 
 # link library to executable
 add_executable(app app/main.cpp)
+add_executable(compiler app/compiler.cpp)
 target_link_libraries(lib 
     PRIVATE
     MLIRIR
@@ -46,5 +47,6 @@ target_link_libraries(lib
     LLVMSupport
 )
 target_link_libraries(app lib)
+target_link_libraries(compiler lib)
 
 
