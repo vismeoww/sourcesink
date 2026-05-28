@@ -1,5 +1,5 @@
-#include "parser.hpp"
-#include "ast.hpp"
+#include "parser/parser.hpp"
+#include "parser/ast.hpp"
 
 // TODO: remove later
 #include <iostream>

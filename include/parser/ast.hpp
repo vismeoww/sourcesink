@@ -39,6 +39,7 @@ public:
   std::string toString() const override {
     return "IntValue(" + std::to_string(value_) + ")";
   }
+  int getValue() const { return value_; }
 };
 
 // Float literal
@@ -52,6 +53,7 @@ public:
   std::string toString() const override {
     return "FloatValue(" + std::to_string(value_) + ")";
   }
+  float getValue() const { return value_; }
 };
 
 // boolean literal
@@ -90,6 +92,7 @@ public:
   std::string toString() const override {
     return "Ident(" + value_ + ")";
   }
+  std::string getValue() const { return value_; }
 };
 
 enum BinOpType {

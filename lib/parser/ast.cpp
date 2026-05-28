@@ -1,4 +1,4 @@
-#include "ast.hpp"
+#include "parser/ast.hpp"
 
 
 std::string expr::binOpTypeToString(BinOpType type) {
