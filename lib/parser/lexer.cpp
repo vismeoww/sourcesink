@@ -4,7 +4,7 @@ Lexer::Lexer(std::string input) { this->input = input; }
 
 const bool isReservedChar(char c) {
   return c == ';' || c == '(' || c == ')' || c == '{' || c == '}' || c == '[' ||
-         c == ']' || c == ',' || c == '=' || c == ':' || c == '+' || c == '-' || 
+         c == ']' || c == ',' || c == '=' || c == ':' || c == '+' || c == '-' ||
          c == '*' || c == '/';
 }
 const bool isWhitespace(char c) {
@@ -46,11 +46,10 @@ TokenType getTokenType(char c) {
   }
 }
 
-
 void Lexer::saveIdent() {
   // if it's a keyword, save it as a keyword
-  if(keywords.find(ident) != keywords.end()) {
-    Token t = {keywords.at(ident), ident};
+  if (keywords.find(ident) != keywords.end()) {
+    Token t = {keywords.at(ident), ident, line, col};
     tokens.push_back(t);
     ident = "";
     state = DEFAULT;
@@ -58,14 +57,14 @@ void Lexer::saveIdent() {
   }
   // if ident is an int, save it as a number
   if (ident.find_first_not_of("0123456789") == std::string::npos) {
-    Token t = {T_NUMBER, ident};
+    Token t = {T_NUMBER, ident, line, col};
     tokens.push_back(t);
     ident = "";
     state = DEFAULT;
     return;
   }
   // if not save it as an identifier
-  Token t = {T_IDENT, ident};
+  Token t = {T_IDENT, ident, line, col};
   tokens.push_back(t);
   ident = "";
   state = DEFAULT;
@@ -77,7 +76,8 @@ std::vector<Token> Lexer::tokenize() {
       if (state == READING_IDENT) {
         saveIdent();
       }
-      i++;
+      // i++;
+      advance();
       continue;
     }
     if (isReservedChar(input[i])) {
@@ -87,19 +87,29 @@ std::vector<Token> Lexer::tokenize() {
       TokenType tp = getTokenType(input[i]);
       Token t = {tp, input.substr(i, 1)};
       tokens.push_back(t);
-      i++;
+      // i++;
+      advance();
       continue;
     }
     if (input[i] >= 'a' && input[i] <= 'z' ||
         input[i] >= 'A' && input[i] <= 'Z' ||
-        input[i] >= '0' && input[i] <= '9' ||
-        input[i] == '_') {
+        input[i] >= '0' && input[i] <= '9' || input[i] == '_') {
       state = READING_IDENT;
       ident += input[i];
-      i++;
+      // i++;
+      advance();
       continue;
     }
-    i++;
+    // i++;
+    advance();
   }
   return tokens;
+}
+
+void Lexer::advance() {
+  if (input[i++] == '\n') {
+    line++;
+    col = 0;
+  }
+  col++;
 }

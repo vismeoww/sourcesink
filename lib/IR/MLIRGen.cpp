@@ -5,19 +5,18 @@
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 
-MLIRGenImpl::MLIRGenImpl(mlir::MLIRContext& context) : builder(&context) {
+MLIRGenImpl::MLIRGenImpl(mlir::MLIRContext &context) : builder(&context) {
   module = mlir::ModuleOp::create(builder.getUnknownLoc());
+  this->dummyFileName = mlir::StringAttr::get(builder.getContext(), "dummy.mlir");
 }
 
 mlir::ModuleOp MLIRGenImpl::mlirgen(fn::FunctionPtr func) {
-  // auto theModule = mlir::ModuleOp::create(builder.getUnknownLoc());
   builder.setInsertionPointToStart(module.getBody());
   this->mlirGen(std::move(func));
   return module;
 }
 
 mlir::ModuleOp MLIRGenImpl::mlirgen(module::ModulePtr moduleptr) {
-  // auto theModule = mlir::ModuleOp::create(builder.getUnknownLoc());
   for (auto &fn : moduleptr->functions()) {
     builder.setInsertionPointToStart(module.getBody());
     this->mlirGen(std::move(fn));
@@ -32,8 +31,7 @@ mlir::func::FuncOp MLIRGenImpl::mlirGen(fn::FunctionPtr func) {
     argTypes.push_back(argType);
   }
 
-  auto funcType = mlir::FunctionType::get(builder.getContext(), argTypes,
-                                          builder.getIntegerType(32));
+  auto funcType = mlir::FunctionType::get(builder.getContext(), argTypes, {});
 
   auto function = mlir::func::FuncOp::create(builder, builder.getUnknownLoc(),
                                              func->name(), funcType);
@@ -48,11 +46,12 @@ mlir::func::FuncOp MLIRGenImpl::mlirGen(fn::FunctionPtr func) {
   }
 
   for (auto &stmt : func->body()) {
-    if(stmt->type() == statement::Return) {
+    if (stmt->type() == statement::Return) {
       auto stmtVal = processStmt(std::move(stmt));
       llvm::ArrayRef<mlir::Type> argTypes = function.getArgumentTypes();
       mlir::Type stmtType = stmtVal.getType();
-      auto newFnType = mlir::FunctionType::get(builder.getContext(), argTypes, stmtType);
+      auto newFnType =
+          mlir::FunctionType::get(builder.getContext(), argTypes, stmtType);
       function.setType(newFnType);
     } else {
       processStmt(std::move(stmt));
@@ -74,8 +73,9 @@ mlir::Value MLIRGenImpl::processStmt(statement::StmtPtr stmt) {
     // TODO: update function return type based on this
     auto *returnStmt = static_cast<statement::ReturnStmt *>(stmt.get());
     auto &expr = returnStmt->expr();
+    mlir::Location loc = buildLoc(returnStmt->loc());
     auto exprVal = genExpr(std::move(expr));
-    mlir::func::ReturnOp::create(builder, builder.getUnknownLoc(), exprVal);
+    mlir::func::ReturnOp::create(builder, loc, exprVal);
     return exprVal;
   }
   assert(false && "unknown statement");
@@ -97,14 +97,14 @@ mlir::Value MLIRGenImpl::genExpr(expr::ExprPtr expr) {
 }
 
 mlir::Value MLIRGenImpl::processIntExpr(expr::IntValue *intExpr) {
-  return mlir::arith::ConstantIntOp::create(builder, builder.getUnknownLoc(),
+  return mlir::arith::ConstantIntOp::create(builder, buildLoc(intExpr->loc()),
                                             intExpr->getValue(), 32);
 }
 
 mlir::Value MLIRGenImpl::processFloatExpr(expr::FloatValue *floatExpr) {
   mlir::FloatType floatType = builder.getF32Type();
   llvm::APFloat apFloat(floatExpr->getValue());
-  return mlir::arith::ConstantFloatOp::create(builder, builder.getUnknownLoc(),
+  return mlir::arith::ConstantFloatOp::create(builder, buildLoc(floatExpr->loc()),
                                               floatType, apFloat);
 }
 
@@ -119,16 +119,16 @@ mlir::Value MLIRGenImpl::processBinExpr(expr::BinOp *expr) {
   auto op = binExpr->op();
   // TODO: right now all types are assumed to be int
   if (op == expr::kBinOpAdd) {
-    return mlir::arith::AddIOp::create(builder, builder.getUnknownLoc(), lhs,
+    return mlir::arith::AddIOp::create(builder, buildLoc(binExpr->loc()), lhs,
                                        rhs);
   } else if (op == expr::kBinOpSub) {
-    return mlir::arith::SubIOp::create(builder, builder.getUnknownLoc(), lhs,
+    return mlir::arith::SubIOp::create(builder, buildLoc(binExpr->loc()), lhs,
                                        rhs);
   } else if (op == expr::kBinOpMul) {
-    return mlir::arith::MulIOp::create(builder, builder.getUnknownLoc(), lhs,
+    return mlir::arith::MulIOp::create(builder, buildLoc(binExpr->loc()), lhs,
                                        rhs);
   } else if (op == expr::kBinOpDiv) {
-    return mlir::arith::DivSIOp::create(builder, builder.getUnknownLoc(), lhs,
+    return mlir::arith::DivSIOp::create(builder, buildLoc(binExpr->loc()), lhs,
                                         rhs);
   }
   assert(false && "unknown binary operator");
@@ -136,7 +136,7 @@ mlir::Value MLIRGenImpl::processBinExpr(expr::BinOp *expr) {
 
 mlir::Value MLIRGenImpl::processFnCall(expr::FunctionCall *fnCall) {
   auto fn = fnCall->name();
-  auto& args = fnCall->args();
+  auto &args = fnCall->args();
   auto calleeFunc = module.lookupSymbol<mlir::func::FuncOp>(fn);
   if (!calleeFunc) {
     throw std::runtime_error("function not found: " + fn);
@@ -145,13 +145,16 @@ mlir::Value MLIRGenImpl::processFnCall(expr::FunctionCall *fnCall) {
   // registers
   llvm::SmallVector<mlir::Value, 4> operands;
   for (auto &argExpr : args) {
-    // This recursively evaluates variables or nested math ops like foo(a + 1,
-    // b)
     mlir::Value argValue = genExpr(std::move(argExpr));
     operands.push_back(argValue);
   }
   auto retType = calleeFunc.getResultTypes();
-
-  auto callOp = mlir::func::CallOp::create(builder, builder.getUnknownLoc(), retType, mlir::SymbolRefAttr::get(builder.getContext(), fn), operands);
+  auto callOp = mlir::func::CallOp::create(
+      builder, buildLoc(fnCall->loc()), retType,
+      mlir::SymbolRefAttr::get(builder.getContext(), fn), operands);
   return callOp.getResult(0);
+}
+
+mlir::Location MLIRGenImpl::buildLoc(Loc loc) {
+  return mlir::FileLineColLoc::get(builder.getContext(), dummyFileName, loc.line, loc.column);
 }

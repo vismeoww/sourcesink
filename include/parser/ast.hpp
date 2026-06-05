@@ -5,6 +5,9 @@
 #include <variant>
 #include <vector>
 
+#include "token.hpp"
+
+
 namespace expr {
 
 enum ExprType {
@@ -20,10 +23,14 @@ enum ExprType {
 
 // base class for all expressions
 class Expr {
+private:
+  Loc loc_;
 public:
   virtual ~Expr() = default;
   virtual ExprType type() const = 0;
   virtual std::string toString() const = 0;
+  Loc loc() const { return loc_; }
+  void setLoc(Loc loc) { loc_ = loc; }
 };
 
 using ExprPtr = std::unique_ptr<Expr>;
@@ -171,10 +178,14 @@ enum StmtType {
 };
 
 class Statement {
+  private:
+    Loc loc_;
   public:
     virtual ~Statement() = default;
     virtual StmtType type() const = 0;
     virtual std::string toString() const = 0;
+    Loc loc() const { return loc_; }
+    void setLoc(Loc loc) { loc_ = loc; }
 };
 
 using StmtPtr = std::unique_ptr<Statement>;
@@ -216,6 +227,7 @@ namespace fn {
     std::string name_;
     std::vector<std::pair<std::string, std::string>> args_;
     std::vector<statement::StmtPtr> body_;
+    Loc loc_;
     public:
       Function(std::string name, std::vector<std::pair<std::string, std::string>> args, std::vector<statement::StmtPtr> body)
           : name_(name), args_(std::move(args)), body_(std::move(body)) {}
@@ -234,6 +246,8 @@ namespace fn {
         }
         return "Function(" + name_ + "(" + argsStr + ")){" + bodyStr + "}";
       }
+      Loc loc() const { return loc_; }
+      void setLoc(Loc loc) { loc_ = loc; }
   };
   using FunctionPtr = std::unique_ptr<Function>;
 }

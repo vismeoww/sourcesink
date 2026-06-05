@@ -46,6 +46,7 @@ Result<expr::ExprPtr, std::string> Parser::parseExpr() {
   expr::ExprPtr expr = result.getValue();
   while (curr().type == T_PLUS || curr().type == T_MINUS) {
     Token op = curr();
+    Loc loc = curr().getLoc();
     consume();
     auto rhs = parseTerm();
     if (rhs.isErr()) {
@@ -53,6 +54,7 @@ Result<expr::ExprPtr, std::string> Parser::parseExpr() {
     }
     expr::BinOpType op_type = op.type == T_PLUS ? expr::kBinOpAdd : expr::kBinOpSub;
     expr = std::make_unique<expr::BinOp>(op_type, std::move(expr), std::move(rhs.getValue()));
+    expr->setLoc(loc);
   }
   return Result<expr::ExprPtr, std::string>(std::move(expr));
 }
@@ -65,6 +67,7 @@ Result<expr::ExprPtr, std::string> Parser::parseTerm() {
   expr::ExprPtr expr = result.getValue();
   while (curr().type == T_MUL || curr().type == T_DIV) {
     Token op = curr();
+    Loc loc = curr().getLoc();
     consume();
     auto rhs = parseFactor();
     if (rhs.isErr()) {
@@ -72,6 +75,7 @@ Result<expr::ExprPtr, std::string> Parser::parseTerm() {
     }
     expr::BinOpType op_type = op.type == T_MUL ? expr::kBinOpMul : expr::kBinOpDiv;
     expr = std::make_unique<expr::BinOp>(op_type, std::move(expr), std::move(rhs.getValue()));
+    expr->setLoc(loc);
   }
   return Result<expr::ExprPtr, std::string>(std::move(expr));
 }
@@ -90,9 +94,11 @@ Result<expr::ExprPtr, std::string> Parser::parseFactor() {
     return Result<expr::ExprPtr, std::string>(std::move(result.getValue()));
   }
   if (curr().type == T_NUMBER) {
-    Result<expr::ExprPtr, std::string> result = Result<expr::ExprPtr, std::string>(std::make_unique<expr::IntValue>(std::stoi(curr().value)));
+    auto result = std::make_unique<expr::IntValue>(std::stoi(curr().value));
+    result->setLoc(curr().getLoc());
+    Result<expr::ExprPtr, std::string> res = Result<expr::ExprPtr, std::string>(std::move(result));
     consume();
-    return std::move(result);
+    return std::move(res);
   }
   if (curr().type == T_IDENT) {
     save(); 
@@ -102,7 +108,9 @@ Result<expr::ExprPtr, std::string> Parser::parseFactor() {
     } else {
       return std::move(result);
     }
-    Result<expr::ExprPtr, std::string> result2 = Result<expr::ExprPtr, std::string>(std::make_unique<expr::Ident>(curr().value));
+    auto res = std::make_unique<expr::Ident>(curr().value);
+    res->setLoc(curr().getLoc());
+    Result<expr::ExprPtr, std::string> result2 = Result<expr::ExprPtr, std::string>(std::move(res));
     consume();
     return std::move(result2);
   }
@@ -113,6 +121,7 @@ Result<expr::ExprPtr, std::string> Parser::parseFnCall() {
   if (curr().type != T_IDENT) {
     return Result<expr::ExprPtr, std::string>("expected identifier");
   }
+  Loc loc = curr().getLoc();
   std::string name = curr().value;
   consume();
   if (curr().type != T_OPEN_PAREN) {
@@ -135,7 +144,10 @@ Result<expr::ExprPtr, std::string> Parser::parseFnCall() {
     consume();
   }
   consume();
-  return Result<expr::ExprPtr, std::string>(std::make_unique<expr::FunctionCall>(name, std::move(args)));
+  auto res = std::make_unique<expr::FunctionCall>(name, std::move(args));
+  res->setLoc(loc);
+  return Result<expr::ExprPtr, std::string>(std::move(res));
+  // return Result<expr::ExprPtr, std::string>(std::make_unique<expr::FunctionCall>(name, std::move(args)));
 }
 
 void Parser::save() {
@@ -173,6 +185,7 @@ Result<statement::StmtPtr, std::string> Parser::parseReturnStmt() {
   if (curr().type != T_RETURN) {
     return Result<statement::StmtPtr, std::string>("expected return");
   }
+  Loc loc = curr().getLoc();
   consume();
   auto result = parseExpr();
   if (result.isErr()) {
@@ -183,7 +196,10 @@ Result<statement::StmtPtr, std::string> Parser::parseReturnStmt() {
     return Result<statement::StmtPtr, std::string>("expected EOL");
   }
   consume();
-  return Result<statement::StmtPtr, std::string>(std::make_unique<statement::ReturnStmt>(std::move(result.getValue())));
+  auto res = std::make_unique<statement::ReturnStmt>(std::move(result.getValue()));
+  res->setLoc(loc);
+  return Result<statement::StmtPtr, std::string>(std::move(res));
+  // return Result<statement::StmtPtr, std::string>(std::make_unique<statement::ReturnStmt>(std::move(result.getValue())));
 }
 
 Result<statement::StmtPtr, std::string> Parser::parseAssignStmt() {
@@ -191,6 +207,7 @@ Result<statement::StmtPtr, std::string> Parser::parseAssignStmt() {
     return Result<statement::StmtPtr, std::string>("expected identifier");
   }
   std::string lhs = curr().value;
+  Loc loc = curr().getLoc();
   consume();
   if (curr().type != T_EQUAL) {
     return Result<statement::StmtPtr, std::string>("expected =");
@@ -205,13 +222,17 @@ Result<statement::StmtPtr, std::string> Parser::parseAssignStmt() {
     return Result<statement::StmtPtr, std::string>("expected EOL");
   }
   consume();
-  return Result<statement::StmtPtr, std::string>(std::make_unique<statement::AssignStmt>(lhs, std::move(result.getValue())));
+  auto res = std::make_unique<statement::AssignStmt>(lhs, std::move(result.getValue()));
+  res->setLoc(loc);
+  return Result<statement::StmtPtr, std::string>(std::move(res));
+  // return Result<statement::StmtPtr, std::string>(std::make_unique<statement::AssignStmt>(lhs, std::move(result.getValue())));
 }
 
 Result<fn::FunctionPtr, std::string> Parser::parseFunction() {
   if (curr().type != T_FUNCTION) {
     return Result<fn::FunctionPtr, std::string>("expected fn");
   }
+  Loc loc = curr().getLoc();
   consume();
   if (curr().type != T_IDENT) {
     return Result<fn::FunctionPtr, std::string>("expected function name");
@@ -263,7 +284,10 @@ Result<fn::FunctionPtr, std::string> Parser::parseFunction() {
     body.push_back(std::move(result.getValue()));
   }
   consume();
-  return Result<fn::FunctionPtr, std::string>(std::make_unique<fn::Function>(name, std::move(args), std::move(body)));
+  auto res = std::make_unique<fn::Function>(name, std::move(args), std::move(body));
+  res->setLoc(loc);
+  return Result<fn::FunctionPtr, std::string>(std::move(res));
+  // return Result<fn::FunctionPtr, std::string>(std::make_unique<fn::Function>(name, std::move(args), std::move(body)));
 }
 
 Result<module::ModulePtr, std::string> Parser::parseModule() {

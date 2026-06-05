@@ -1,6 +1,12 @@
 #pragma once
 
 #include <string>
+#include <stdint.h>
+
+struct Loc{
+  uint32_t line;
+  uint32_t column;
+};
 
 enum TokenType {
     T_IDENT,
@@ -16,7 +22,7 @@ enum TokenType {
     T_COMMA,
     T_EQUAL,
     T_COLON,
-    //operators 
+    //operators
     T_PLUS,
     T_MINUS,
     T_MUL,
@@ -34,13 +40,16 @@ enum TokenType {
     // keywords
     T_RETURN,
     T_FUNCTION,
-    // EOF 
+    // EOF
     T_EOF
 };
 
 struct Token {
     TokenType type;
     std::string value;
+    uint32_t line;
+    uint32_t column;
+    Loc getLoc() const { return Loc{line, column}; }
 };
 
 std::string tokenTypeToString(TokenType type);

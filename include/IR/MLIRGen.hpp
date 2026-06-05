@@ -20,8 +20,11 @@ class MLIRGenImpl {
     mlir::Value processIdentExpr(expr::Ident* identExpr);
     mlir::Value processBinExpr(expr::BinOp* binExpr);
     mlir::Value processFnCall(expr::FunctionCall* fnCall);
+
+    mlir::Location buildLoc(Loc loc);
   private:
     mlir::OpBuilder builder;
     mlir::ModuleOp module;
     std::map<std::string, mlir::Value> symbolTable;
+    mlir::StringAttr dummyFileName;
 };
