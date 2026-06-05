@@ -14,9 +14,26 @@ find_package(MLIR REQUIRED CONFIG)
 message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
 message(STATUS "Using MLIRConfig.cmake in: ${MLIR_DIR}")
 
+list(APPEND CMAKE_MODULE_PATH "${MLIR_CMAKE_DIR}")
+list(APPEND CMAKE_MODULE_PATH "${LLVM_CMAKE_DIR}")
+include(TableGen)
+include(AddLLVM)
+include(AddMLIR)
+
 # 2. Include directories
-include_directories(${LLVM_INCLUDE_DIRS} ${MLIR_INCLUDE_DIRS} ${PROJECT_SOURCE_DIR}/include)
+include_directories(${LLVM_INCLUDE_DIRS} ${MLIR_INCLUDE_DIRS} )
+include_directories(${PROJECT_SOURCE_DIR}/include)
+include_directories(${PROJECT_BINARY_DIR}/include)
 link_directories(${LLVM_LIBRARY_DIRS})
+
+file(MAKE_DIRECTORY "${PROJECT_BINARY_DIR}/include/Stream")
+
+set(LLVM_TARGET_DEFINITIONS include/Stream/StreamOps.td)
+mlir_tablegen(include/Stream/StreamDialect.h.inc -gen-dialect-decls)
+mlir_tablegen(include/Stream/StreamDialect.cpp.inc -gen-dialect-defs)
+mlir_tablegen(include/Stream/StreamOps.h.inc -gen-op-decls)
+mlir_tablegen(include/Stream/StreamOps.cpp.inc -gen-op-defs)
+add_public_tablegen_target(MLIRStreamIncGen)
 
 # include folder 
 include_directories(include)
@@ -32,7 +49,12 @@ add_library(lib
   # IR
   lib/IR/MLIRGen.cpp
   lib/IR/TypeConv.cpp
+
+  # Stream
+  lib/Stream/StreamDialect.cpp
 )
+
+add_dependencies(lib MLIRStreamIncGen)
 
 # link library to executable
 add_executable(app app/main.cpp)
