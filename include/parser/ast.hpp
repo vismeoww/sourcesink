@@ -222,23 +222,62 @@ public:
 
 } // namespace statement
 
+namespace types {
+  enum TypeKind {
+    Atomic,
+    ADTK,
+  };
+  class Type {
+  public:
+    virtual ~Type() = default;
+    virtual TypeKind kind() const = 0;
+    virtual std::string toString() const = 0;
+  };
+
+  using TypePtr = std::unique_ptr<Type>;
+  class AtomicType final : public Type {
+    std::string name_;
+  public:
+    AtomicType(std::string name) : name_(name) {}
+    virtual ~AtomicType() = default;
+    TypeKind kind() const override { return Atomic; }
+    std::string name() const { return name_; }
+    std::string toString() const override {
+      return "AtomicType(" + name_ + ")";
+    }
+  };
+
+  class ADTKType final : public Type {
+    std::string name_;
+    TypePtr inner_;
+  public:
+    ADTKType(std::string name, TypePtr inner) : name_(name), inner_(std::move(inner)) {}
+    virtual ~ADTKType() = default;
+    TypeKind kind() const override { return ADTK; }
+    std::string name() const { return name_; }
+    std::string toString() const override {
+      return "ADTKType(" + name_ + ", " + inner_->toString() + ")";
+    }
+  };
+}
+
 namespace fn {
   class Function {
     std::string name_;
-    std::vector<std::pair<std::string, std::string>> args_;
+    std::vector<std::pair<std::string, types::TypePtr>> args_;
     std::vector<statement::StmtPtr> body_;
     Loc loc_;
     public:
-      Function(std::string name, std::vector<std::pair<std::string, std::string>> args, std::vector<statement::StmtPtr> body)
+      Function(std::string name, std::vector<std::pair<std::string, types::TypePtr>> args, std::vector<statement::StmtPtr> body)
           : name_(name), args_(std::move(args)), body_(std::move(body)) {}
       virtual ~Function() = default;
       std::string name() const { return name_; }
-      std::vector<std::pair<std::string, std::string>>& args()  { return args_; }
+      std::vector<std::pair<std::string, types::TypePtr>>& args()  { return args_; }
       std::vector<statement::StmtPtr>& body()  { return body_; }
       std::string toString() const {
         std::string argsStr;
         for (auto& arg : args_) {
-          argsStr += arg.first + ":" + arg.second + ", ";
+          argsStr += arg.first + ":" + arg.second->toString() + ", ";
         }
         std::string bodyStr;
         for (auto& stmt : body_) {

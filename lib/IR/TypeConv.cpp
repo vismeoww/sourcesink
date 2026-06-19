@@ -27,3 +27,12 @@ mlir::Type getTypeFromString(mlir::OpBuilder& builder, std::string typeName) {
     assert(false && "unknown type");
   }
 }
+
+mlir::Type getTypeFromPType(mlir::OpBuilder& builder, types::TypePtr& type) {
+  if (type->kind() == types::TypeKind::Atomic) {
+    return getTypeFromString(builder, static_cast<types::AtomicType*>(type.get())->name());
+  } else if (type->kind() == types::TypeKind::ADTK) {
+    assert(false && "ADTK type not implemented");
+  }
+  assert(false && "unknown type");
+}

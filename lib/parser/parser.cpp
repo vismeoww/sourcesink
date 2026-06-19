@@ -88,7 +88,7 @@ Result<expr::ExprPtr, std::string> Parser::parseFactor() {
       return result;
     }
     if (curr().type != T_CLOSE_PAREN) {
-      return Result<expr::ExprPtr, std::string>("expected ')'");
+      return Result<expr::ExprPtr, std::string>::expectedButGot("')'", curr());
     }
     consume();
     return Result<expr::ExprPtr, std::string>(std::move(result.getValue()));
@@ -114,18 +114,18 @@ Result<expr::ExprPtr, std::string> Parser::parseFactor() {
     consume();
     return std::move(result2);
   }
-  return Result<expr::ExprPtr, std::string>("expected factor");
+  return Result<expr::ExprPtr, std::string>::buildError("expected factor", curr());
 }
 
 Result<expr::ExprPtr, std::string> Parser::parseFnCall() {
   if (curr().type != T_IDENT) {
-    return Result<expr::ExprPtr, std::string>("expected identifier");
+    return Result<expr::ExprPtr, std::string>::expectedButGot("identifier", curr());
   }
   Loc loc = curr().getLoc();
   std::string name = curr().value;
   consume();
   if (curr().type != T_OPEN_PAREN) {
-    return Result<expr::ExprPtr, std::string>("expected '('");
+    return Result<expr::ExprPtr, std::string>::expectedButGot("'('", curr());
   }
   consume();
   std::vector<expr::ExprPtr> args;
@@ -139,7 +139,7 @@ Result<expr::ExprPtr, std::string> Parser::parseFnCall() {
       break;
     }
     if (curr().type != T_COMMA) {
-      return Result<expr::ExprPtr, std::string>("expected ','");
+      return Result<expr::ExprPtr, std::string>::expectedButGot("','", curr());
     }
     consume();
   }
@@ -147,7 +147,6 @@ Result<expr::ExprPtr, std::string> Parser::parseFnCall() {
   auto res = std::make_unique<expr::FunctionCall>(name, std::move(args));
   res->setLoc(loc);
   return Result<expr::ExprPtr, std::string>(std::move(res));
-  // return Result<expr::ExprPtr, std::string>(std::make_unique<expr::FunctionCall>(name, std::move(args)));
 }
 
 void Parser::save() {
@@ -183,7 +182,7 @@ Result<statement::StmtPtr, std::string> Parser::parseStmt() {
 
 Result<statement::StmtPtr, std::string> Parser::parseReturnStmt() {
   if (curr().type != T_RETURN) {
-    return Result<statement::StmtPtr, std::string>("expected return");
+    return Result<statement::StmtPtr, std::string>::buildError("expected return", curr());
   }
   Loc loc = curr().getLoc();
   consume();
@@ -193,24 +192,23 @@ Result<statement::StmtPtr, std::string> Parser::parseReturnStmt() {
     return Result<statement::StmtPtr, std::string>(err);
   }
   if(curr().type != T_SEMICOL) {
-    return Result<statement::StmtPtr, std::string>("expected EOL");
+    return Result<statement::StmtPtr, std::string>::expectedButGot(";", curr());
   }
   consume();
   auto res = std::make_unique<statement::ReturnStmt>(std::move(result.getValue()));
   res->setLoc(loc);
   return Result<statement::StmtPtr, std::string>(std::move(res));
-  // return Result<statement::StmtPtr, std::string>(std::make_unique<statement::ReturnStmt>(std::move(result.getValue())));
 }
 
 Result<statement::StmtPtr, std::string> Parser::parseAssignStmt() {
   if (curr().type != T_IDENT) {
-    return Result<statement::StmtPtr, std::string>("expected identifier");
+    return Result<statement::StmtPtr, std::string>::expectedButGot("identifier", curr());
   }
   std::string lhs = curr().value;
   Loc loc = curr().getLoc();
   consume();
   if (curr().type != T_EQUAL) {
-    return Result<statement::StmtPtr, std::string>("expected =");
+    return Result<statement::StmtPtr, std::string>::expectedButGot("=", curr());
   }
   consume();
   auto result = parseExpr();
@@ -219,52 +217,74 @@ Result<statement::StmtPtr, std::string> Parser::parseAssignStmt() {
     return Result<statement::StmtPtr, std::string>(err);
   }
   if(curr().type != T_SEMICOL) {
-    return Result<statement::StmtPtr, std::string>("expected EOL");
+    return Result<statement::StmtPtr, std::string>::expectedButGot(";", curr());
   }
   consume();
   auto res = std::make_unique<statement::AssignStmt>(lhs, std::move(result.getValue()));
   res->setLoc(loc);
   return Result<statement::StmtPtr, std::string>(std::move(res));
-  // return Result<statement::StmtPtr, std::string>(std::make_unique<statement::AssignStmt>(lhs, std::move(result.getValue())));
+}
+
+Result<types::TypePtr, std::string> Parser::parseType() {
+  if (curr().type == T_IDENT) {
+    std::string name = curr().value;
+    consume();
+    if (curr().type == T_LT) {
+      consume();
+      auto result = parseType();
+      if (result.isErr()) {
+        return result;
+      }
+      if (curr().type != T_GT) {
+        return Result<types::TypePtr, std::string>::expectedButGot("'>'", curr());
+      }
+      consume();
+      auto res = std::make_unique<types::ADTKType>(name, std::move(result.getValue()));
+      return Result<types::TypePtr, std::string>(std::move(res));
+    }
+    auto res = std::make_unique<types::AtomicType>(name);
+    return Result<types::TypePtr, std::string>(std::move(res));
+  }
+  return Result<types::TypePtr, std::string>::expectedButGot("identifier", curr());
 }
 
 Result<fn::FunctionPtr, std::string> Parser::parseFunction() {
   if (curr().type != T_FUNCTION) {
-    return Result<fn::FunctionPtr, std::string>("expected fn");
+    return Result<fn::FunctionPtr, std::string>::buildError("expected fn", curr());
   }
   Loc loc = curr().getLoc();
   consume();
   if (curr().type != T_IDENT) {
-    return Result<fn::FunctionPtr, std::string>("expected function name");
+    return Result<fn::FunctionPtr, std::string>::expectedButGot("function name", curr());
   }
   std::string name = curr().value;
   consume();
   if (curr().type != T_OPEN_PAREN) {
-    return Result<fn::FunctionPtr, std::string>("expected '('");
+    return Result<fn::FunctionPtr, std::string>::expectedButGot("'('", curr());
   }
   consume();
-  std::vector<std::pair<std::string,std::string>> args;
+  std::vector<std::pair<std::string,types::TypePtr>> args;
   while (curr().type != T_CLOSE_PAREN) {
     if (curr().type != T_IDENT) {
-      return Result<fn::FunctionPtr, std::string>("expected identifier");
+      return Result<fn::FunctionPtr, std::string>::expectedButGot("identifier", curr());
     }
     std::string arg_name = curr().value;
     consume();
     if (curr().type != T_COLON) {
-      return Result<fn::FunctionPtr, std::string>("expected ':'");
+      return Result<fn::FunctionPtr, std::string>::expectedButGot("':'", curr());
     }
     consume();
-    if (curr().type != T_IDENT) {
-      return Result<fn::FunctionPtr, std::string>("expected type");
+    auto result = parseType();
+    if (result.isErr()) {
+      return Result<fn::FunctionPtr, std::string>(result.getError());
     }
-    std::string arg_type = curr().value;
-    consume();
-    args.push_back(std::make_pair(arg_name, arg_type));
+    types::TypePtr arg_type = std::move(result.getValue());
+    args.push_back(std::make_pair(arg_name, std::move(arg_type)));
     if (curr().type == T_CLOSE_PAREN) {
       break;
     }
     if (curr().type != T_COMMA) {
-      return Result<fn::FunctionPtr, std::string>("expected ','");
+      return Result<fn::FunctionPtr, std::string>::expectedButGot("','", curr());
     } else {
       consume();
     }
@@ -272,7 +292,7 @@ Result<fn::FunctionPtr, std::string> Parser::parseFunction() {
   consume();
   std::vector<statement::StmtPtr> body;
   if (curr().type != T_OPEN_BRACE) {
-    return Result<fn::FunctionPtr, std::string>("expected '{'");
+    return Result<fn::FunctionPtr, std::string>::expectedButGot("'{'", curr());
   }
   consume();
   while (curr().type != T_CLOSE_BRACE) {
@@ -287,7 +307,6 @@ Result<fn::FunctionPtr, std::string> Parser::parseFunction() {
   auto res = std::make_unique<fn::Function>(name, std::move(args), std::move(body));
   res->setLoc(loc);
   return Result<fn::FunctionPtr, std::string>(std::move(res));
-  // return Result<fn::FunctionPtr, std::string>(std::make_unique<fn::Function>(name, std::move(args), std::move(body)));
 }
 
 Result<module::ModulePtr, std::string> Parser::parseModule() {

@@ -27,7 +27,8 @@ mlir::ModuleOp MLIRGenImpl::mlirgen(module::ModulePtr moduleptr) {
 mlir::func::FuncOp MLIRGenImpl::mlirGen(fn::FunctionPtr func) {
   llvm::SmallVector<mlir::Type, 4> argTypes;
   for (auto &arg : func->args()) {
-    auto argType = getTypeFromString(builder, arg.second);
+    // auto argType = getTypeFromString(builder, arg.second);
+    auto argType = getTypeFromPType(builder, arg.second);
     argTypes.push_back(argType);
   }
 
@@ -39,7 +40,7 @@ mlir::func::FuncOp MLIRGenImpl::mlirGen(fn::FunctionPtr func) {
   builder.setInsertionPointToStart(entryBlock);
 
   for (const auto &pair : llvm::zip(func->args(), function.getArguments())) {
-    auto arg = std::get<0>(pair);
+    auto& arg = std::get<0>(pair);
     auto argName = std::get<0>(arg);
     auto argVal = std::get<1>(pair);
     symbolTable[argName] = argVal;

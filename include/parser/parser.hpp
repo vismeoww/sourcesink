@@ -17,6 +17,14 @@ class Result {
     T& getValueRef() { assert(isOk()); return value; }
     E& getErrorRef() { assert(isErr()); return error; }
 
+    static Result buildError(std::string err, Token token) {
+      err += " at line " + std::to_string(token.line) + " column " + std::to_string(token.column);
+      return Result(err);
+    }
+    static Result expectedButGot(std::string expected, Token token) {
+      return buildError("expected " + expected + ", but got " + tokenToString(token), token);
+    }
+
   private:
     T value;
     E error;
@@ -50,6 +58,10 @@ class Parser {
     Result<statement::StmtPtr, std::string> parseStmt();
     Result<statement::StmtPtr, std::string> parseAssignStmt();
     Result<statement::StmtPtr, std::string> parseReturnStmt();
+    // for parsing types
+    Result<types::TypePtr, std::string> parseTypeAtomic();
+    Result<types::TypePtr, std::string> parseTypeADTK();
+    Result<types::TypePtr, std::string> parseType();
     // functions for parsing functions
     Result<fn::FunctionPtr, std::string> parseFunction();
     // parse module 
