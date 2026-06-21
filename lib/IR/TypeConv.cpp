@@ -1,6 +1,8 @@
 #include "IR/TypeConv.hpp"
 
-mlir::Type getTypeFromString(mlir::OpBuilder& builder, std::string typeName) {
+#include "Stream/StreamType.h"
+
+mlir::Type getTypeFromString(mlir::OpBuilder &builder, std::string typeName) {
   if (typeName == "i1") {
     return builder.getIntegerType(1);
   } else if (typeName == "i8") {
@@ -28,10 +30,33 @@ mlir::Type getTypeFromString(mlir::OpBuilder& builder, std::string typeName) {
   }
 }
 
-mlir::Type getTypeFromPType(mlir::OpBuilder& builder, types::TypePtr& type) {
+mlir::Type getTypeFromPType(mlir::OpBuilder &builder, types::TypePtr &type) {
   if (type->kind() == types::TypeKind::Atomic) {
-    return getTypeFromString(builder, static_cast<types::AtomicType*>(type.get())->name());
+    return getTypeFromString(
+        builder, static_cast<types::AtomicType *>(type.get())->name());
   } else if (type->kind() == types::TypeKind::ADTK) {
+    std::string kind = static_cast<types::ADTKType *>(type.get())->name();
+    if (kind == "Event") {
+      assert(static_cast<types::ADTKType *>(type.get())->inner()->kind() ==
+             types::TypeKind::Atomic);
+      mlir::Type innerType = getTypeFromString(
+          builder,
+          static_cast<types::AtomicType *>(
+              static_cast<types::ADTKType *>(type.get())->inner().get())
+              ->name());
+      return mlir::stream::EventType::get(builder.getContext(), innerType);
+    } else if (kind == "State") {
+      assert(static_cast<types::ADTKType *>(type.get())->inner()->kind() ==
+             types::TypeKind::Atomic);
+      mlir::Type innerType = getTypeFromString(
+          builder,
+          static_cast<types::AtomicType *>(
+              static_cast<types::ADTKType *>(type.get())->inner().get())
+              ->name());
+      return mlir::stream::StateType::get(builder.getContext(), innerType);
+    } else {
+      assert(false && "unknown kind of type");
+    }
     assert(false && "ADTK type not implemented");
   }
   assert(false && "unknown type");

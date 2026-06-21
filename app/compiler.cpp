@@ -10,10 +10,13 @@
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 
+#include "Stream/StreamDialect.h"
+
 struct Options {
   bool help = false;
   std::optional<std::string> inputFile;
   bool debug = false;
+  bool parse = false;
 };
 
 Options parseOptions(int argc, char** argv) {
@@ -24,6 +27,8 @@ Options parseOptions(int argc, char** argv) {
       options.help = true;
     } else if (arg == "-d" || arg == "--debug") {
       options.debug = true;
+    } else if (arg == "-p" || arg == "--parse") {
+      options.parse = true;
     } else {
       options.inputFile = arg;
     }
@@ -36,6 +41,7 @@ void printHelp() {
     std::cout << "Options:" << std::endl;
     std::cout << "  -h, --help      Print this help message" << std::endl;
     std::cout << "  -d, --debug     Enable debug mode" << std::endl;
+    std::cout << "  -p, --parse     Parse the input file and print the AST" << std::endl;
 }
 
 int main(int argc, char** argv) {
@@ -73,9 +79,20 @@ int main(int argc, char** argv) {
     return -1;
   }
 
+  if (options.parse) {
+    std::cout << ";----- TOKENS -----" << std::endl;
+    for (auto& token : tokens) {
+      std::cout << tokenToString(token) << std::endl;
+    }
+    std::cout << ";----- AST -----" << std::endl;
+    auto res = result.getValue()->toString();
+    std::cout << res << std::endl;
+    return 0;
+  }
+
   auto mod = result.getValue();
   mlir::MLIRContext context;
-  context.loadDialect<mlir::func::FuncDialect, mlir::arith::ArithDialect>();
+  context.loadDialect<mlir::func::FuncDialect, mlir::arith::ArithDialect, mlir::stream::StreamDialect>();
   MLIRGenImpl gen(context);
   auto module = gen.mlirgen(std::move(mod));
 

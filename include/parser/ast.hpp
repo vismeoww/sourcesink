@@ -2,7 +2,6 @@
 
 #include <memory>
 #include <string>
-#include <variant>
 #include <vector>
 
 #include "token.hpp"
@@ -258,6 +257,7 @@ namespace types {
     std::string toString() const override {
       return "ADTKType(" + name_ + ", " + inner_->toString() + ")";
     }
+    TypePtr& inner()  { return inner_; }
   };
 }
 

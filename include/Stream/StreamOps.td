@@ -9,6 +9,30 @@ def Stream_Dialect : Dialect {
     let name = "stream";
     let summary = "A custom Kafka-like stream processing dialect.";
     let cppNamespace = "::mlir::stream";
+    let useDefaultTypePrinterParser = 1;
+// Inject the declaration into the generated C++ class body
+    let extraClassDeclaration = [{
+        void registerTypes();
+    }];
+}
+
+// Base class for Stream Types
+class Stream_Type<string name, string typeMnemonic> : TypeDef<Stream_Dialect, name> {
+  let mnemonic = typeMnemonic;
+}
+
+// 1. Event Type
+def Stream_Event : Stream_Type<"Event", "event"> {
+  let summary = "A discrete stream of events";
+  let parameters = (ins "Type":$elementType);
+  let assemblyFormat = "`<` $elementType `>`";
+}
+
+// 2. State Type
+def Stream_State : Stream_Type<"State", "state"> {
+  let summary = "A continuous state cell";
+  let parameters = (ins "Type":$elementType);
+  let assemblyFormat = "`<` $elementType `>`";
 }
 
 // 2. Define a Base Operation

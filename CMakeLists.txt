@@ -31,6 +31,8 @@ file(MAKE_DIRECTORY "${PROJECT_BINARY_DIR}/include/Stream")
 set(LLVM_TARGET_DEFINITIONS include/Stream/StreamOps.td)
 mlir_tablegen(include/Stream/StreamDialect.h.inc -gen-dialect-decls)
 mlir_tablegen(include/Stream/StreamDialect.cpp.inc -gen-dialect-defs)
+mlir_tablegen(include/Stream/StreamType.h.inc -gen-typedef-decls)
+mlir_tablegen(include/Stream/StreamType.cpp.inc -gen-typedef-defs)
 mlir_tablegen(include/Stream/StreamOps.h.inc -gen-op-decls)
 mlir_tablegen(include/Stream/StreamOps.cpp.inc -gen-op-defs)
 add_public_tablegen_target(MLIRStreamIncGen)
@@ -52,6 +54,7 @@ add_library(lib
 
   # Stream
   lib/Stream/StreamDialect.cpp
+  lib/Stream/StreamType.cpp
 )
 
 add_dependencies(lib MLIRStreamIncGen)
@@ -59,6 +62,11 @@ add_dependencies(lib MLIRStreamIncGen)
 # link library to executable
 add_executable(app app/main.cpp)
 add_executable(compiler app/compiler.cpp)
+
+# Add this right after you define your executable or library target
+target_compile_options(lib PRIVATE "-fno-rtti")
+target_compile_options(compiler PRIVATE "-fno-rtti")
+
 target_link_libraries(lib 
     PRIVATE
     MLIRIR

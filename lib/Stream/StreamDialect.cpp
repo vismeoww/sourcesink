@@ -1,4 +1,6 @@
 #include "Stream/StreamDialect.h"
+#include "Stream/StreamOp.h"
+#include "Stream/StreamType.h"
 
 #include "mlir/IR/Builders.h"             // Fixes incomplete mlir::Builder / mlir::OpBuilder
 #include "mlir/IR/ImplicitLocOpBuilder.h" // Fixes incomplete mlir::ImplicitLocOpBuilder
@@ -16,4 +18,5 @@ void mlir::stream::StreamDialect::initialize() {
 #define GET_OP_LIST
 #include "Stream/StreamOps.cpp.inc"
   >();
+  registerTypes();
 }

@@ -5,7 +5,7 @@ Lexer::Lexer(std::string input) { this->input = input; }
 const bool isReservedChar(char c) {
   return c == ';' || c == '(' || c == ')' || c == '{' || c == '}' || c == '[' ||
          c == ']' || c == ',' || c == '=' || c == ':' || c == '+' || c == '-' ||
-         c == '*' || c == '/';
+         c == '*' || c == '/' || c == '<' || c == '>' || c == '!' || c == '|' ;
 }
 const bool isWhitespace(char c) {
   return c == ' ' || c == '\t' || c == '\n' || c == '\r';
@@ -27,6 +27,10 @@ TokenType getTokenType(char c) {
     return T_OPEN_BRACKET;
   case ']':
     return T_CLOSE_BRACKET;
+  case '<':
+    return T_LT;
+  case '>':
+    return T_GT;
   case ',':
     return T_COMMA;
   case '=':

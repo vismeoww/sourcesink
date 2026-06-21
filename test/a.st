@@ -1,4 +1,4 @@
-fn add(a:i32 , b:i32){
+fn add(a:Event<i32> , b:Event<i32>){
   return a+b;
 }
 fn main(a:i64,b:i64){
