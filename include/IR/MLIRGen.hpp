@@ -6,12 +6,14 @@
 
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 
+#include "IR/Operators.hpp"
+
 class MLIRGenImpl {
   public:
-    MLIRGenImpl(mlir::MLIRContext& context);
+    MLIRGenImpl(mlir::MLIRContext& context, std::string moduleName);
     mlir::ModuleOp mlirgen(fn::FunctionPtr func);
     mlir::ModuleOp mlirgen(module::ModulePtr module);
-    mlir::func::FuncOp mlirGen(fn::FunctionPtr func);
+    mlir::func::FuncOp processFunction(fn::FunctionPtr func);
     mlir::Value processStmt(statement::StmtPtr stmt);
     mlir::Value genExpr(expr::ExprPtr expr);
     // processing each expr 
@@ -27,4 +29,5 @@ class MLIRGenImpl {
     mlir::ModuleOp module;
     std::map<std::string, mlir::Value> symbolTable;
     mlir::StringAttr dummyFileName;
+    static const bool isExistingOp(std::string fnname);
 };

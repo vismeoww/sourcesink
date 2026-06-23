@@ -28,7 +28,7 @@ link_directories(${LLVM_LIBRARY_DIRS})
 
 file(MAKE_DIRECTORY "${PROJECT_BINARY_DIR}/include/Stream")
 
-set(LLVM_TARGET_DEFINITIONS include/Stream/StreamOps.td)
+set(LLVM_TARGET_DEFINITIONS include/StreamTablegen/StreamOps.td)
 mlir_tablegen(include/Stream/StreamDialect.h.inc -gen-dialect-decls)
 mlir_tablegen(include/Stream/StreamDialect.cpp.inc -gen-dialect-defs)
 mlir_tablegen(include/Stream/StreamType.h.inc -gen-typedef-decls)
@@ -51,6 +51,7 @@ add_library(lib
   # IR
   lib/IR/MLIRGen.cpp
   lib/IR/TypeConv.cpp
+  lib/IR/Operators.cpp
 
   # Stream
   lib/Stream/StreamDialect.cpp

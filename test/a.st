@@ -6,5 +6,7 @@ fn main(a:i64,b:i64){
   d = c * 2;
   e = d + 1;
   x = add(d,e);
-  return x;
+  stx = latestEventToState(x);
+  y = stateChangeEvents(stx);
+  return stx;
 }

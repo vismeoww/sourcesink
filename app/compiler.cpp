@@ -93,7 +93,8 @@ int main(int argc, char** argv) {
   auto mod = result.getValue();
   mlir::MLIRContext context;
   context.loadDialect<mlir::func::FuncDialect, mlir::arith::ArithDialect, mlir::stream::StreamDialect>();
-  MLIRGenImpl gen(context);
+  std::string moduleName = inputFile.substr(inputFile.find_last_of("/") + 1);
+  MLIRGenImpl gen(context, moduleName);
   auto module = gen.mlirgen(std::move(mod));
 
   mlir::OpPrintingFlags flags;

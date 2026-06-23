@@ -5,26 +5,70 @@
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 
-MLIRGenImpl::MLIRGenImpl(mlir::MLIRContext &context) : builder(&context) {
+
+/*
+ * MLIRGenImpl
+ * constructor
+ */
+MLIRGenImpl::MLIRGenImpl(mlir::MLIRContext &context, std::string moduleName)
+    : builder(&context) {
   module = mlir::ModuleOp::create(builder.getUnknownLoc());
-  this->dummyFileName = mlir::StringAttr::get(builder.getContext(), "dummy.mlir");
+  this->dummyFileName = mlir::StringAttr::get(builder.getContext(), moduleName);
 }
 
+/*
+ * Get all operators
+ */
+const bool MLIRGenImpl::isExistingOp(std::string fnname) {
+  for (auto& op : allOps()) {
+    if (fnname == op) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/*
+ * Generate MLIR for a function
+ *
+ * @param func: function to generate MLIR for
+ * @return: MLIR module
+ */
 mlir::ModuleOp MLIRGenImpl::mlirgen(fn::FunctionPtr func) {
   builder.setInsertionPointToStart(module.getBody());
-  this->mlirGen(std::move(func));
+  this->processFunction(std::move(func));
   return module;
 }
 
+/*
+ * Generate MLIR for a module
+ *
+ * @param moduleptr: module to generate MLIR for
+ * @return: MLIR module
+ */
 mlir::ModuleOp MLIRGenImpl::mlirgen(module::ModulePtr moduleptr) {
   for (auto &fn : moduleptr->functions()) {
     builder.setInsertionPointToStart(module.getBody());
-    this->mlirGen(std::move(fn));
+    this->processFunction(std::move(fn));
   }
   return module;
 }
 
-mlir::func::FuncOp MLIRGenImpl::mlirGen(fn::FunctionPtr func) {
+/*
+ * Generate MLIR for a function
+ *
+ * @param func: function to generate MLIR for
+ * @return: MLIR function
+ */
+mlir::func::FuncOp MLIRGenImpl::processFunction(fn::FunctionPtr func) {
+  // clear symbol table
+  symbolTable.clear();
+  // see if the function is an operator
+  if (isExistingOp(func->name())) {
+    std::string errorMsg = "function name cannot be an operator: "+ func->name();
+    fprintf(stderr, "%s\n", errorMsg.c_str());
+    assert(0);
+  }
   llvm::SmallVector<mlir::Type, 4> argTypes;
   for (auto &arg : func->args()) {
     // auto argType = getTypeFromString(builder, arg.second);
@@ -40,7 +84,7 @@ mlir::func::FuncOp MLIRGenImpl::mlirGen(fn::FunctionPtr func) {
   builder.setInsertionPointToStart(entryBlock);
 
   for (const auto &pair : llvm::zip(func->args(), function.getArguments())) {
-    auto& arg = std::get<0>(pair);
+    auto &arg = std::get<0>(pair);
     auto argName = std::get<0>(arg);
     auto argVal = std::get<1>(pair);
     symbolTable[argName] = argVal;
@@ -61,6 +105,12 @@ mlir::func::FuncOp MLIRGenImpl::mlirGen(fn::FunctionPtr func) {
   return function;
 }
 
+/*
+ * Generate MLIR for a statement
+ *
+ * @param stmt: statement to generate MLIR for
+ * @return: MLIR value
+ */
 mlir::Value MLIRGenImpl::processStmt(statement::StmtPtr stmt) {
   if (stmt->type() == statement::Assign) {
     auto *assignStmt = static_cast<statement::AssignStmt *>(stmt.get());
@@ -82,6 +132,12 @@ mlir::Value MLIRGenImpl::processStmt(statement::StmtPtr stmt) {
   assert(false && "unknown statement");
 }
 
+/*
+ * Generate MLIR for an expression
+ *
+ * @param expr: expression to generate MLIR for
+ * @return: MLIR value
+ */
 mlir::Value MLIRGenImpl::genExpr(expr::ExprPtr expr) {
   if (expr->type() == expr::kExprTInt) {
     return processIntExpr(static_cast<expr::IntValue *>(expr.get()));
@@ -97,22 +153,46 @@ mlir::Value MLIRGenImpl::genExpr(expr::ExprPtr expr) {
   assert(false && "unknown expression");
 }
 
+/*
+ * Generate MLIR for an integer expression
+ *
+ * @param intExpr: integer expression to generate MLIR for
+ * @return: MLIR value
+ */
 mlir::Value MLIRGenImpl::processIntExpr(expr::IntValue *intExpr) {
   return mlir::arith::ConstantIntOp::create(builder, buildLoc(intExpr->loc()),
                                             intExpr->getValue(), 32);
 }
 
+/*
+ * Generate MLIR for a float expression
+ *
+ * @param floatExpr: float expression to generate MLIR for
+ * @return: MLIR value
+ */
 mlir::Value MLIRGenImpl::processFloatExpr(expr::FloatValue *floatExpr) {
   mlir::FloatType floatType = builder.getF32Type();
   llvm::APFloat apFloat(floatExpr->getValue());
-  return mlir::arith::ConstantFloatOp::create(builder, buildLoc(floatExpr->loc()),
-                                              floatType, apFloat);
+  return mlir::arith::ConstantFloatOp::create(
+      builder, buildLoc(floatExpr->loc()), floatType, apFloat);
 }
 
+/*
+ * Generate MLIR for an identifier expression
+ *
+ * @param identExpr: identifier expression to generate MLIR for
+ * @return: MLIR value
+ */
 mlir::Value MLIRGenImpl::processIdentExpr(expr::Ident *identExpr) {
   return symbolTable[identExpr->getValue()];
 }
 
+/*
+ * Generate MLIR for a binary expression
+ *
+ * @param expr: binary expression to generate MLIR for
+ * @return: MLIR value
+ */
 mlir::Value MLIRGenImpl::processBinExpr(expr::BinOp *expr) {
   auto *binExpr = static_cast<expr::BinOp *>(expr);
   auto lhs = genExpr(std::move(binExpr->lhs()));
@@ -135,9 +215,30 @@ mlir::Value MLIRGenImpl::processBinExpr(expr::BinOp *expr) {
   assert(false && "unknown binary operator");
 }
 
+/*
+ * Generate MLIR for a function call
+ *
+ * @param fnCall: function call to generate MLIR for
+ * @return: MLIR value
+ */
 mlir::Value MLIRGenImpl::processFnCall(expr::FunctionCall *fnCall) {
+
   auto fn = fnCall->name();
   auto &args = fnCall->args();
+  int numArgs = args.size();
+  // see if the function is an operator
+  if(numArgs == 1) {
+    if (unaryOpMap.find(fn) != unaryOpMap.end()) {
+      auto op = unaryOpMap.at(fn);
+      return op(builder,genExpr(std::move(args[0])));
+    }
+  } else if (numArgs == 2) {
+    if (binaryOpMap.find(fn) != binaryOpMap.end()) {
+      auto op = binaryOpMap.at(fn);
+      return op(builder,genExpr(std::move(args[0])), genExpr(std::move(args[1])));
+    }
+  }
+  // if not see if the function is defined in the module
   auto calleeFunc = module.lookupSymbol<mlir::func::FuncOp>(fn);
   if (!calleeFunc) {
     throw std::runtime_error("function not found: " + fn);
@@ -156,6 +257,13 @@ mlir::Value MLIRGenImpl::processFnCall(expr::FunctionCall *fnCall) {
   return callOp.getResult(0);
 }
 
+/*
+ * Helper function to build MLIR location
+ *
+ * @param loc: location to build location for
+ * @return: MLIR location
+ */
 mlir::Location MLIRGenImpl::buildLoc(Loc loc) {
-  return mlir::FileLineColLoc::get(builder.getContext(), dummyFileName, loc.line, loc.column);
+  return mlir::FileLineColLoc::get(builder.getContext(), dummyFileName,
+                                   loc.line, loc.column);
 }
