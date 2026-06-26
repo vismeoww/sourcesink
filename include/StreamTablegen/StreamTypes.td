@@ -44,4 +44,14 @@ def IsStateTypeOf : TypeConstraint<
   string transformer = "llvm::cast<::mlir::stream::StateType>($_self).getElementType()";
 }
 
+
+// Constraint: Type must be either a Stream_Event or Stream_State
+def StreamEventOrState : TypeConstraint<
+  Or<[Stream_Event.predicate, Stream_State.predicate]>,
+  "stream event or state type"
+>;
+
+// Constraint: Enforces that the result type matches the operand type exactly
+def AllSameStreamType : AllTypesMatch<["lhs", "rhs", "result"]>;
+
 #endif // STREAM_TYPES

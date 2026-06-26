@@ -61,3 +61,54 @@ mlir::Type getTypeFromPType(mlir::OpBuilder &builder, types::TypePtr &type) {
   }
   assert(false && "unknown type");
 }
+
+bool isTypeEvent(const mlir::Type& type) {
+  if (llvm::isa<mlir::stream::EventType>(type)) {
+    return true;
+  }
+  return false;
+}
+
+bool isTypeState(const mlir::Type& type) {
+  if (llvm::isa<mlir::stream::StateType>(type)) {
+    return true;
+  }
+  return false;
+}
+
+bool isStreamType(const mlir::Type& type) {
+  if (isTypeEvent(type) || isTypeState(type)) {
+    return true;
+  }
+  return false;
+}
+
+StreamType streamType(const mlir::Type& type) {
+  if (isTypeEvent(type)) {
+    return kStreamEvent;
+  } else if (isTypeState(type)) {
+    return kStreamState;
+  }
+  return KNonStream;
+}
+
+std::optional<mlir::Type> coersedType(const mlir::Type& lhs, const mlir::Type& rhs) {
+  auto lhsType = streamType(lhs);
+  auto rhsType = streamType(rhs);
+  if (lhsType == rhsType) {
+    return lhs;
+  }
+  if (lhsType == KNonStream && rhsType == kStreamEvent) {
+    return rhs;
+  }
+  if (lhsType == KNonStream && rhsType == kStreamState) {
+    return rhs;
+  }
+  if (lhsType == kStreamEvent && rhsType == KNonStream) {
+    return lhs;
+  }
+  if (lhsType == kStreamState && rhsType == KNonStream) {
+    return lhs;
+  }
+  return std::nullopt;
+}

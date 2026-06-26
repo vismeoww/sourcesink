@@ -16,6 +16,10 @@ const std::map<std::string, UnaryOpFn> unaryOpMap = {
   {"stateChangeEvents", stateChangeEvents},
 };
 
+mlir::Value add(mlir::OpBuilder& builder, mlir::Value lhs, mlir::Value rhs, mlir::Location loc, mlir::Type type);
+mlir::Value sub(mlir::OpBuilder& builder, mlir::Value lhs, mlir::Value rhs, mlir::Location loc, mlir::Type type);
+mlir::Value mul(mlir::OpBuilder& builder, mlir::Value lhs, mlir::Value rhs, mlir::Location loc, mlir::Type type);
+mlir::Value div(mlir::OpBuilder& builder, mlir::Value lhs, mlir::Value rhs, mlir::Location loc, mlir::Type type);
 
 typedef std::function<mlir::Value(mlir::OpBuilder&,mlir::Value, mlir::Value)> BinaryOpFn;
 const std::map<std::string, BinaryOpFn> binaryOpMap = {};

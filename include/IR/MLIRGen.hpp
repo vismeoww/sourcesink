@@ -20,6 +20,7 @@ class MLIRGenImpl {
     mlir::Value processIntExpr(expr::IntValue* intExpr);
     mlir::Value processFloatExpr(expr::FloatValue* floatExpr);
     mlir::Value processIdentExpr(expr::Ident* identExpr);
+    mlir::Value processStreamBinExpr(mlir::Value lhs, mlir::Value rhs, expr::BinOpType op, Loc loc, mlir::Type coersedType);
     mlir::Value processBinExpr(expr::BinOp* binExpr);
     mlir::Value processFnCall(expr::FunctionCall* fnCall);
 

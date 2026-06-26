@@ -3,6 +3,8 @@
 #define STREAM_OPS
 
 include "mlir/IR/OpBase.td"
+include "mlir/Interfaces/SideEffectInterfaces.td"
+
 include "StreamTablegen/StreamDialect.td"
 include "StreamTablegen/StreamTypes.td"
 
@@ -56,5 +58,32 @@ def Stream_StateChangeEventsOp : Stream_Op<"stateChangeEvents", [
   // Optional: Automatically maps the assembly to look clean
   let assemblyFormat = "$input attr-dict `:` type($input) `->` type($result)";
 }
+
+// Binary operators
+
+class Stream_BinaryOp<string mnemonic, list<Trait> traits = []> :
+    Op<Stream_Dialect, mnemonic, !listconcat(traits, [AllSameStreamType, Pure])> {
+      
+  let summary = "Binary arithmetic operation on streams";
+  
+  // Both inputs must satisfy the event-or-state constraint
+  let arguments = (ins
+    StreamEventOrState:$lhs,
+    StreamEventOrState:$rhs
+  );
+
+  // The output matches the input constraint
+  let results = (outs
+    StreamEventOrState:$result
+  );
+
+  // Simple assembly format: %result = stream.add %lhs, %rhs : !stream.event<i32>
+  let assemblyFormat = "$lhs `,` $rhs attr-dict `:` type($result)";
+}
+
+def Stream_AddOp : Stream_BinaryOp<"add">;
+def Stream_SubOp : Stream_BinaryOp<"sub">;
+def Stream_MulOp : Stream_BinaryOp<"mul">;
+def Stream_DivOp : Stream_BinaryOp<"div">;
 
 #endif // STREAM_OPS

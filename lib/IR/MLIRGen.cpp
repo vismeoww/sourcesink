@@ -5,7 +5,6 @@
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 
-
 /*
  * MLIRGenImpl
  * constructor
@@ -20,7 +19,7 @@ MLIRGenImpl::MLIRGenImpl(mlir::MLIRContext &context, std::string moduleName)
  * Get all operators
  */
 const bool MLIRGenImpl::isExistingOp(std::string fnname) {
-  for (auto& op : allOps()) {
+  for (auto &op : allOps()) {
     if (fnname == op) {
       return true;
     }
@@ -65,7 +64,8 @@ mlir::func::FuncOp MLIRGenImpl::processFunction(fn::FunctionPtr func) {
   symbolTable.clear();
   // see if the function is an operator
   if (isExistingOp(func->name())) {
-    std::string errorMsg = "function name cannot be an operator: "+ func->name();
+    std::string errorMsg =
+        "function name cannot be an operator: " + func->name();
     fprintf(stderr, "%s\n", errorMsg.c_str());
     assert(0);
   }
@@ -187,6 +187,19 @@ mlir::Value MLIRGenImpl::processIdentExpr(expr::Ident *identExpr) {
   return symbolTable[identExpr->getValue()];
 }
 
+mlir::Value MLIRGenImpl::processStreamBinExpr(mlir::Value lhs, mlir::Value rhs,
+                                              expr::BinOpType op, Loc loc, mlir::Type coersedType) {
+  if (op == expr::kBinOpAdd) {
+    return add(builder, lhs, rhs, buildLoc(loc), coersedType);
+  } else if (op == expr::kBinOpSub) {
+    return sub(builder, lhs, rhs, buildLoc(loc), coersedType);
+  } else if (op == expr::kBinOpMul) {
+    return mul(builder, lhs, rhs, buildLoc(loc), coersedType);
+  } else if (op == expr::kBinOpDiv) {
+    return div(builder, lhs, rhs, buildLoc(loc), coersedType);
+  }
+  assert(false && "unknown binary operator");
+}
 /*
  * Generate MLIR for a binary expression
  *
@@ -198,6 +211,14 @@ mlir::Value MLIRGenImpl::processBinExpr(expr::BinOp *expr) {
   auto lhs = genExpr(std::move(binExpr->lhs()));
   auto rhs = genExpr(std::move(binExpr->rhs()));
   auto op = binExpr->op();
+  if (isStreamType(lhs.getType()) || isStreamType(rhs.getType())) {
+    auto coercedType = coersedType(lhs.getType(), rhs.getType());
+    if (coercedType.has_value()) {
+      return processStreamBinExpr(lhs, rhs, op, binExpr->loc(), coercedType.value());
+    } else {
+      throw std::runtime_error("processBinExpr: lhs and rhs cannot be coersed");
+    }
+  }
   // TODO: right now all types are assumed to be int
   if (op == expr::kBinOpAdd) {
     return mlir::arith::AddIOp::create(builder, buildLoc(binExpr->loc()), lhs,
@@ -227,15 +248,16 @@ mlir::Value MLIRGenImpl::processFnCall(expr::FunctionCall *fnCall) {
   auto &args = fnCall->args();
   int numArgs = args.size();
   // see if the function is an operator
-  if(numArgs == 1) {
+  if (numArgs == 1) {
     if (unaryOpMap.find(fn) != unaryOpMap.end()) {
       auto op = unaryOpMap.at(fn);
-      return op(builder,genExpr(std::move(args[0])));
+      return op(builder, genExpr(std::move(args[0])));
     }
   } else if (numArgs == 2) {
     if (binaryOpMap.find(fn) != binaryOpMap.end()) {
       auto op = binaryOpMap.at(fn);
-      return op(builder,genExpr(std::move(args[0])), genExpr(std::move(args[1])));
+      return op(builder, genExpr(std::move(args[0])),
+                genExpr(std::move(args[1])));
     }
   }
   // if not see if the function is defined in the module
