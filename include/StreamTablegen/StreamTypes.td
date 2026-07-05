@@ -24,6 +24,20 @@ def Stream_State : Stream_Type<"State", "state"> {
   let assemblyFormat = "`<` $elementType `>`";
 }
 
+// 3. Optional Type
+def Stream_Optional : Stream_Type<"Optional", "optional"> {
+  let summary = "An optional type for values that may or may not be present";
+  let parameters = (ins "Type":$elementType);
+  let assemblyFormat = "`<` $elementType `>`";
+}
+
+// 4. Atomic Type 
+def Stream_Atomic : Stream_Type<"Atomic", "atomic"> {
+  let summary = "An atomic type for values that may or may not be present";
+  let parameters = (ins "Type":$elementType);
+  let assemblyFormat = "`<` $elementType `>`";
+}
+
 // Constraint: Validates that a type is a Stream_Event and extracts its element type
 def IsEventTypeOf : TypeConstraint<
   // Explicitly write out your dialect's C++ namespace here
@@ -42,6 +56,24 @@ def IsStateTypeOf : TypeConstraint<
 > {
   // This allows AllTypesMatch to fetch the inner 'T'
   string transformer = "llvm::cast<::mlir::stream::StateType>($_self).getElementType()";
+}
+
+def IsOptionalTypeOf : TypeConstraint<
+  // Explicitly write out your dialect's C++ namespace here
+  CPred<"llvm::isa<::mlir::stream::OptionalType>($_self)">,
+  "a stream optional type"
+> {
+  // This allows AllTypesMatch to fetch the inner 'T'
+  string transformer = "llvm::cast<::mlir::stream::OptionalType>($_self).getElementType()";
+}
+
+def IsAtomicTypeOf : TypeConstraint<
+  // Explicitly write out your dialect's C++ namespace here
+  CPred<"llvm::isa<::mlir::stream::AtomicType>($_self)">,
+  "a stream atomic type"
+> {
+  // This allows AllTypesMatch to fetch the inner 'T'
+  string transformer = "llvm::cast<::mlir::stream::AtomicType>($_self).getElementType()";
 }
 
 

@@ -47,7 +47,7 @@ void dumpMLIR(std::string input) {
         mlir::MLIRContext context;
         context.loadDialect<mlir::func::FuncDialect, mlir::arith::ArithDialect>();
         MLIRGenImpl gen(context, "test");
-        auto module = gen.mlirgen(std::move(fn));
+        auto module = gen.mlirgen(fn);
         std::cout << "----- Generated MLIR -----" << std::endl;
         module.dump();
         std::cout << "--------------------------" << std::endl;

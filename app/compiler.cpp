@@ -1,14 +1,14 @@
 
-#include <iostream>
-#include <fstream>
-#include <string>
 #include "parser/lexer.hpp"
 #include "parser/parser.hpp"
+#include <fstream>
+#include <iostream>
+#include <string>
 
 #include "IR/MLIRGen.hpp"
-#include "mlir/IR/BuiltinOps.h"
-#include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
+#include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "mlir/IR/BuiltinOps.h"
 
 #include "Stream/StreamDialect.h"
 
@@ -19,7 +19,7 @@ struct Options {
   bool parse = false;
 };
 
-Options parseOptions(int argc, char** argv) {
+Options parseOptions(int argc, char **argv) {
   Options options;
   for (int i = 1; i < argc; ++i) {
     std::string arg = argv[i];
@@ -37,14 +37,15 @@ Options parseOptions(int argc, char** argv) {
 }
 
 void printHelp() {
-    std::cout << "Usage: compiler [options] inputFile" << std::endl;
-    std::cout << "Options:" << std::endl;
-    std::cout << "  -h, --help      Print this help message" << std::endl;
-    std::cout << "  -d, --debug     Enable debug mode" << std::endl;
-    std::cout << "  -p, --parse     Parse the input file and print the AST" << std::endl;
+  std::cout << "Usage: compiler [options] inputFile" << std::endl;
+  std::cout << "Options:" << std::endl;
+  std::cout << "  -h, --help      Print this help message" << std::endl;
+  std::cout << "  -d, --debug     Enable debug mode" << std::endl;
+  std::cout << "  -p, --parse     Parse the input file and print the AST"
+            << std::endl;
 }
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
 
   Options options = parseOptions(argc, argv);
   if (options.help) {
@@ -58,7 +59,7 @@ int main(int argc, char** argv) {
     return -1;
   }
 
-  // read the input file 
+  // read the input file
   std::string inputFile = options.inputFile.value();
 
   std::ifstream input(inputFile);
@@ -69,7 +70,7 @@ int main(int argc, char** argv) {
   std::string inputStr((std::istreambuf_iterator<char>(input)),
                        std::istreambuf_iterator<char>());
   input.close();
-  // parse the input file 
+  // parse the input file
   Lexer lexer(inputStr);
   auto tokens = lexer.tokenize();
   Parser parser(tokens);
@@ -81,7 +82,7 @@ int main(int argc, char** argv) {
 
   if (options.parse) {
     std::cout << ";----- TOKENS -----" << std::endl;
-    for (auto& token : tokens) {
+    for (auto &token : tokens) {
       std::cout << tokenToString(token) << std::endl;
     }
     std::cout << ";----- AST -----" << std::endl;
@@ -92,10 +93,11 @@ int main(int argc, char** argv) {
 
   auto mod = result.getValue();
   mlir::MLIRContext context;
-  context.loadDialect<mlir::func::FuncDialect, mlir::arith::ArithDialect, mlir::stream::StreamDialect>();
+  context.loadDialect<mlir::func::FuncDialect, mlir::arith::ArithDialect,
+                      mlir::stream::StreamDialect>();
   std::string moduleName = inputFile.substr(inputFile.find_last_of("/") + 1);
   MLIRGenImpl gen(context, moduleName);
-  auto module = gen.mlirgen(std::move(mod));
+  auto module = gen.mlirgen(mod);
 
   mlir::OpPrintingFlags flags;
 
@@ -104,7 +106,7 @@ int main(int argc, char** argv) {
   }
 
   std::cout << ";----- Generated MLIR -----" << std::endl;
-  module.print(llvm::outs(),flags);
+  module.print(llvm::outs(), flags);
 
   return 0;
 }

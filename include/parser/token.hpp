@@ -55,3 +55,5 @@ struct Token {
 std::string tokenTypeToString(TokenType type);
 
 std::string tokenToString(Token token);
+
+std::string locToSting(Loc loc);

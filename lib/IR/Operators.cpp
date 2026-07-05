@@ -15,8 +15,33 @@ mlir::Value latestEventToState(mlir::OpBuilder& builder, mlir::Value lastEvent) 
   }
   auto eventType = llvm::cast<mlir::stream::EventType>(lastEvent.getType());
   mlir::Type elementType = eventType.getElementType();
-  auto stateResultType = mlir::stream::StateType::get(builder.getContext(), elementType);
+  auto optionalElementType = mlir::stream::OptionalType::get(builder.getContext(), elementType);
+  auto stateResultType = mlir::stream::StateType::get(builder.getContext(), optionalElementType);
   auto op = mlir::stream::LatestEventToStateOp::create(builder, builder.getUnknownLoc(), stateResultType, lastEvent);
+  return op->getResult(0);
+}
+
+mlir::Value latestEventToStateWithDefault(mlir::OpBuilder& builder, mlir::Value lastEvent, mlir::Value defaultValue) {
+  // see if lastEvent is a stream event
+  if(!llvm::isa<mlir::stream::EventType>(lastEvent.getType())){
+    std::string ss;
+    llvm::raw_string_ostream llvmss(ss);
+    mlir::Type lastEventTypeName = lastEvent.getType();
+    lastEventTypeName.print(llvmss);
+    throw std::runtime_error("latestEventToStateWithDefault: lastEvent is not a stream event: "+ss);
+  }
+  auto eventType = llvm::cast<mlir::stream::EventType>(lastEvent.getType());
+  mlir::Type elementType = eventType.getElementType();
+  mlir::Type defaultValueType = defaultValue.getType();
+  if(elementType != defaultValueType){
+    std::string ss;
+    llvm::raw_string_ostream llvmss(ss);
+    mlir::Type defaultValueTypeName = defaultValueType;
+    defaultValueTypeName.print(llvmss);
+    throw std::runtime_error("latestEventToStateWithDefault: defaultValue is not the same type as the event: "+ss);
+  }
+  auto stateResultType = mlir::stream::StateType::get(builder.getContext(), elementType);
+  auto op = mlir::stream::LatestEventToStateWithDefaultOp::create(builder, builder.getUnknownLoc(), stateResultType, lastEvent, defaultValue);
   return op->getResult(0);
 }
 

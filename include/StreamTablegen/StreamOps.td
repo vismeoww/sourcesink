@@ -40,6 +40,21 @@ def Stream_LatestEventToStateOp : Stream_Op<"latestEventToState", [
   let assemblyFormat = "$input attr-dict `:` type($input) `->` type($result)";
 }
 
+def Stream_LatestEventToStateWithDefaultOp : Stream_Op<"latestEventToStateWithDefault", [
+  // This forces the inner 'T' of $input and $result to match exactly
+  AllTypesMatch<["input", "result"]>
+]> {
+  let summary = "Converts the latest event in a stream to a continuous state cell.";
+  let arguments = (ins
+    IsEventTypeOf:$input,
+    IsAtomicTypeOf:$defaultValue
+  );
+  let results = (outs
+    IsStateTypeOf:$result
+  );
+  let assemblyFormat = "$input `,` $defaultValue attr-dict `:` type($input) `,` type($defaultValue) `->` type($result)";
+}
+
 
 def Stream_StateChangeEventsOp : Stream_Op<"stateChangeEvents", [
   // This forces the inner 'T' of $input and $result to match exactly

@@ -33,9 +33,9 @@ const bool MLIRGenImpl::isExistingOp(std::string fnname) {
  * @param func: function to generate MLIR for
  * @return: MLIR module
  */
-mlir::ModuleOp MLIRGenImpl::mlirgen(fn::FunctionPtr func) {
+mlir::ModuleOp MLIRGenImpl::mlirgen(fn::FunctionPtr& func) {
   builder.setInsertionPointToStart(module.getBody());
-  this->processFunction(std::move(func));
+  this->processFunction(func);
   return module;
 }
 
@@ -45,10 +45,10 @@ mlir::ModuleOp MLIRGenImpl::mlirgen(fn::FunctionPtr func) {
  * @param moduleptr: module to generate MLIR for
  * @return: MLIR module
  */
-mlir::ModuleOp MLIRGenImpl::mlirgen(module::ModulePtr moduleptr) {
+mlir::ModuleOp MLIRGenImpl::mlirgen(module::ModulePtr& moduleptr) {
   for (auto &fn : moduleptr->functions()) {
     builder.setInsertionPointToStart(module.getBody());
-    this->processFunction(std::move(fn));
+    this->processFunction(fn);
   }
   return module;
 }
@@ -59,15 +59,14 @@ mlir::ModuleOp MLIRGenImpl::mlirgen(module::ModulePtr moduleptr) {
  * @param func: function to generate MLIR for
  * @return: MLIR function
  */
-mlir::func::FuncOp MLIRGenImpl::processFunction(fn::FunctionPtr func) {
+mlir::func::FuncOp MLIRGenImpl::processFunction(fn::FunctionPtr& func) {
   // clear symbol table
   symbolTable.clear();
   // see if the function is an operator
   if (isExistingOp(func->name())) {
     std::string errorMsg =
         "function name cannot be an operator: " + func->name();
-    fprintf(stderr, "%s\n", errorMsg.c_str());
-    assert(0);
+    throw std::runtime_error(errorMsg);
   }
   llvm::SmallVector<mlir::Type, 4> argTypes;
   for (auto &arg : func->args()) {
@@ -92,14 +91,14 @@ mlir::func::FuncOp MLIRGenImpl::processFunction(fn::FunctionPtr func) {
 
   for (auto &stmt : func->body()) {
     if (stmt->type() == statement::Return) {
-      auto stmtVal = processStmt(std::move(stmt));
+      auto stmtVal = processStmt(stmt);
       llvm::ArrayRef<mlir::Type> argTypes = function.getArgumentTypes();
       mlir::Type stmtType = stmtVal.getType();
       auto newFnType =
           mlir::FunctionType::get(builder.getContext(), argTypes, stmtType);
       function.setType(newFnType);
     } else {
-      processStmt(std::move(stmt));
+      processStmt(stmt);
     }
   }
   return function;
@@ -111,13 +110,13 @@ mlir::func::FuncOp MLIRGenImpl::processFunction(fn::FunctionPtr func) {
  * @param stmt: statement to generate MLIR for
  * @return: MLIR value
  */
-mlir::Value MLIRGenImpl::processStmt(statement::StmtPtr stmt) {
+mlir::Value MLIRGenImpl::processStmt(statement::StmtPtr& stmt) {
   if (stmt->type() == statement::Assign) {
     auto *assignStmt = static_cast<statement::AssignStmt *>(stmt.get());
     auto lhs = assignStmt->lhs();
     auto &rhs = assignStmt->rhs();
     auto lhsVal = symbolTable[lhs];
-    auto rhsVal = genExpr(std::move(rhs));
+    auto rhsVal = genExpr(rhs);
     symbolTable[lhs] = rhsVal;
     return rhsVal;
   } else if (stmt->type() == statement::Return) {
@@ -125,7 +124,7 @@ mlir::Value MLIRGenImpl::processStmt(statement::StmtPtr stmt) {
     auto *returnStmt = static_cast<statement::ReturnStmt *>(stmt.get());
     auto &expr = returnStmt->expr();
     mlir::Location loc = buildLoc(returnStmt->loc());
-    auto exprVal = genExpr(std::move(expr));
+    auto exprVal = genExpr(expr);
     mlir::func::ReturnOp::create(builder, loc, exprVal);
     return exprVal;
   }
@@ -138,7 +137,7 @@ mlir::Value MLIRGenImpl::processStmt(statement::StmtPtr stmt) {
  * @param expr: expression to generate MLIR for
  * @return: MLIR value
  */
-mlir::Value MLIRGenImpl::genExpr(expr::ExprPtr expr) {
+mlir::Value MLIRGenImpl::genExpr(expr::ExprPtr& expr) {
   if (expr->type() == expr::kExprTInt) {
     return processIntExpr(static_cast<expr::IntValue *>(expr.get()));
   } else if (expr->type() == expr::kExprTFloat) {
@@ -188,7 +187,8 @@ mlir::Value MLIRGenImpl::processIdentExpr(expr::Ident *identExpr) {
 }
 
 mlir::Value MLIRGenImpl::processStreamBinExpr(mlir::Value lhs, mlir::Value rhs,
-                                              expr::BinOpType op, Loc loc, mlir::Type coersedType) {
+                                              expr::BinOpType op, Loc loc,
+                                              mlir::Type coersedType) {
   if (op == expr::kBinOpAdd) {
     return add(builder, lhs, rhs, buildLoc(loc), coersedType);
   } else if (op == expr::kBinOpSub) {
@@ -208,15 +208,19 @@ mlir::Value MLIRGenImpl::processStreamBinExpr(mlir::Value lhs, mlir::Value rhs,
  */
 mlir::Value MLIRGenImpl::processBinExpr(expr::BinOp *expr) {
   auto *binExpr = static_cast<expr::BinOp *>(expr);
-  auto lhs = genExpr(std::move(binExpr->lhs()));
-  auto rhs = genExpr(std::move(binExpr->rhs()));
+  std::string binExprStr = binExpr->toString();
+  auto lhs = genExpr(binExpr->lhs());
+  auto rhs = genExpr(binExpr->rhs());
   auto op = binExpr->op();
   if (isStreamType(lhs.getType()) || isStreamType(rhs.getType())) {
-    auto coercedType = coersedType(lhs.getType(), rhs.getType());
+    auto coercedType = binaryOpResultType(lhs.getType(), rhs.getType());
     if (coercedType.has_value()) {
-      return processStreamBinExpr(lhs, rhs, op, binExpr->loc(), coercedType.value());
+      return processStreamBinExpr(lhs, rhs, op, binExpr->loc(),
+                                  coercedType.value());
     } else {
-      throw std::runtime_error("processBinExpr: lhs and rhs cannot be coersed");
+      throw std::runtime_error(
+          "processBinExpr: lhs and rhs cannot be coersed at : " +
+          locToSting(binExpr->loc()) + "\n" + binExprStr);
     }
   }
   // TODO: right now all types are assumed to be int
@@ -251,13 +255,13 @@ mlir::Value MLIRGenImpl::processFnCall(expr::FunctionCall *fnCall) {
   if (numArgs == 1) {
     if (unaryOpMap.find(fn) != unaryOpMap.end()) {
       auto op = unaryOpMap.at(fn);
-      return op(builder, genExpr(std::move(args[0])));
+      return op(builder, genExpr(args[0]));
     }
   } else if (numArgs == 2) {
     if (binaryOpMap.find(fn) != binaryOpMap.end()) {
       auto op = binaryOpMap.at(fn);
-      return op(builder, genExpr(std::move(args[0])),
-                genExpr(std::move(args[1])));
+      return op(builder, genExpr(args[0]),
+                genExpr(args[1]));
     }
   }
   // if not see if the function is defined in the module
@@ -269,7 +273,7 @@ mlir::Value MLIRGenImpl::processFnCall(expr::FunctionCall *fnCall) {
   // registers
   llvm::SmallVector<mlir::Value, 4> operands;
   for (auto &argExpr : args) {
-    mlir::Value argValue = genExpr(std::move(argExpr));
+    mlir::Value argValue = genExpr(argExpr);
     operands.push_back(argValue);
   }
   auto retType = calleeFunc.getResultTypes();

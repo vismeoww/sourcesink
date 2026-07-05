@@ -11,11 +11,11 @@
 class MLIRGenImpl {
   public:
     MLIRGenImpl(mlir::MLIRContext& context, std::string moduleName);
-    mlir::ModuleOp mlirgen(fn::FunctionPtr func);
-    mlir::ModuleOp mlirgen(module::ModulePtr module);
-    mlir::func::FuncOp processFunction(fn::FunctionPtr func);
-    mlir::Value processStmt(statement::StmtPtr stmt);
-    mlir::Value genExpr(expr::ExprPtr expr);
+    mlir::ModuleOp mlirgen(fn::FunctionPtr& func);
+    mlir::ModuleOp mlirgen(module::ModulePtr& module);
+    mlir::func::FuncOp processFunction(fn::FunctionPtr& func);
+    mlir::Value processStmt(statement::StmtPtr& stmt);
+    mlir::Value genExpr(expr::ExprPtr& expr);
     // processing each expr 
     mlir::Value processIntExpr(expr::IntValue* intExpr);
     mlir::Value processFloatExpr(expr::FloatValue* floatExpr);

@@ -50,3 +50,7 @@ std::string tokenToString(Token token) {
     return tokenTypeToString(token.type);
   }
 }
+
+std::string locToSting(Loc loc) {
+  return "line: " + std::to_string(loc.line) + ", column: " + std::to_string(loc.column);
+}

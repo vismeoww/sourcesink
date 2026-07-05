@@ -9,6 +9,7 @@
 using UnaryOpFn = std::function<mlir::Value(mlir::OpBuilder&,mlir::Value)>;
 
 mlir::Value latestEventToState(mlir::OpBuilder& builder, mlir::Value lastEvent);
+mlir::Value latestEventToStateWithDefault(mlir::OpBuilder& builder, mlir::Value lastEvent, mlir::Value defaultValue);
 mlir::Value stateChangeEvents(mlir::OpBuilder& builder, mlir::Value state);
 
 const std::map<std::string, UnaryOpFn> unaryOpMap = {
@@ -22,7 +23,9 @@ mlir::Value mul(mlir::OpBuilder& builder, mlir::Value lhs, mlir::Value rhs, mlir
 mlir::Value div(mlir::OpBuilder& builder, mlir::Value lhs, mlir::Value rhs, mlir::Location loc, mlir::Type type);
 
 typedef std::function<mlir::Value(mlir::OpBuilder&,mlir::Value, mlir::Value)> BinaryOpFn;
-const std::map<std::string, BinaryOpFn> binaryOpMap = {};
+const std::map<std::string, BinaryOpFn> binaryOpMap = {
+  {"latestEventToStateWithDefault", latestEventToStateWithDefault},
+};
 
 
 const std::set<std::string> allOps();
