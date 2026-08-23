@@ -40,6 +40,10 @@ add_public_tablegen_target(MLIRStreamIncGen)
 # include folder 
 include_directories(include)
 
+# NOTE: Moving jit libs to here. maybe only core is needed?
+llvm_map_components_to_libnames(GEN_LIBS core)
+llvm_map_components_to_libnames(JIT_LIBS core orcjit native)
+
 # create library 
 add_library(lib 
   # parser
@@ -56,6 +60,12 @@ add_library(lib
   # Stream
   lib/Stream/StreamDialect.cpp
   lib/Stream/StreamType.cpp
+
+  # LLVMGen
+  lib/LLVMGen/Gen.cpp
+  lib/LLVMGen/Util.cpp
+  lib/LLVMGen/FnGen.cpp
+  lib/LLVMGen/Opt.cpp
 )
 
 add_dependencies(lib MLIRStreamIncGen)
@@ -76,8 +86,22 @@ target_link_libraries(lib
     MLIRParser
     MLIRSupport
     LLVMSupport
+    ${GEN_LIBS}
 )
 target_link_libraries(app lib)
 target_link_libraries(compiler lib)
 
+# NOTE: Added all of this as part of a test, have to move them back into the main project
+
+
+add_library(jit 
+  lib/JIT/jit.cpp
+)
+target_link_libraries(jit
+  PRIVATE
+  ${JIT_LIBS}
+)
+
+add_executable(jitapp app/jit.cpp)
+target_link_libraries(jitapp jit lib)
 

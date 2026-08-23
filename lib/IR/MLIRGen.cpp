@@ -208,7 +208,6 @@ mlir::Value MLIRGenImpl::processStreamBinExpr(mlir::Value lhs, mlir::Value rhs,
  */
 mlir::Value MLIRGenImpl::processBinExpr(expr::BinOp *expr) {
   auto *binExpr = static_cast<expr::BinOp *>(expr);
-  std::string binExprStr = binExpr->toString();
   auto lhs = genExpr(binExpr->lhs());
   auto rhs = genExpr(binExpr->rhs());
   auto op = binExpr->op();
@@ -218,6 +217,7 @@ mlir::Value MLIRGenImpl::processBinExpr(expr::BinOp *expr) {
       return processStreamBinExpr(lhs, rhs, op, binExpr->loc(),
                                   coercedType.value());
     } else {
+      std::string binExprStr = binExpr->toString();
       throw std::runtime_error(
           "processBinExpr: lhs and rhs cannot be coersed at : " +
           locToSting(binExpr->loc()) + "\n" + binExprStr);

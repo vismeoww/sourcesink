@@ -6,6 +6,7 @@
 #include <string>
 
 #include "IR/MLIRGen.hpp"
+#include "LLVMGen/Gen.hpp"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/IR/BuiltinOps.h"
@@ -17,6 +18,7 @@ struct Options {
   std::optional<std::string> inputFile;
   bool debug = false;
   bool parse = false;
+  bool llvm = false;
 };
 
 Options parseOptions(int argc, char **argv) {
@@ -29,6 +31,8 @@ Options parseOptions(int argc, char **argv) {
       options.debug = true;
     } else if (arg == "-p" || arg == "--parse") {
       options.parse = true;
+    } else if (arg == "-l" || arg == "--llvm") {
+      options.llvm = true;
     } else {
       options.inputFile = arg;
     }
@@ -41,8 +45,8 @@ void printHelp() {
   std::cout << "Options:" << std::endl;
   std::cout << "  -h, --help      Print this help message" << std::endl;
   std::cout << "  -d, --debug     Enable debug mode" << std::endl;
-  std::cout << "  -p, --parse     Parse the input file and print the AST"
-            << std::endl;
+  std::cout << "  -p, --parse     Parse the input file and print the AST"<< std::endl;
+  std::cout << "  -l, --llvm      Generate LLVM IR" << std::endl;
 }
 
 int main(int argc, char **argv) {
@@ -103,6 +107,18 @@ int main(int argc, char **argv) {
 
   if (options.debug) {
     flags.enableDebugInfo(true);
+  }
+
+  if (options.llvm) {
+    llvm::LLVMContext llvmContext;
+    LLVMGen llvmGen(&llvmContext);
+    if(llvmGen.generate(module) != 0) {
+      std::cout << "error: failed to generate LLVM IR" << std::endl;
+      return -1;
+    }
+    auto llvmModule = llvmGen.getModule();
+    llvmModule->dump();
+    return 0;
   }
 
   std::cout << ";----- Generated MLIR -----" << std::endl;
