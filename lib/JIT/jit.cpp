@@ -18,6 +18,8 @@
 
 #include "LLVMGen/Opt.hpp"
 
+#include "LLVMGen/FnGen.hpp"
+
 using namespace llvm;
 using namespace llvm::orc;
 
@@ -64,7 +66,24 @@ int buildModule(std::unique_ptr<Module> &M,
   return 0;
 }
 
-int jitApp() {
+int buildModule2(std::unique_ptr<Module> &M,
+                std::unique_ptr<llvm::LLVMContext> &Context) {
+  IRBuilder<> Builder(*Context);
+  Type *Int32Ty = Builder.getInt32Ty();
+  FunctionType *FuncTy = FunctionType::get(Int32Ty, {Int32Ty, Int32Ty}, false);
+  Function *AddFunc =
+      Function::Create(FuncTy, Function::ExternalLinkage, "fnfn", M.get());
+
+  using namespace fngen;
+  FunctionGen fgen(&Builder, AddFunc);
+  Expr lhs = fgen.getArg(0);
+  Expr rhs = fgen.getArg(1);
+  Expr res = lhs + rhs;
+  fgen.Return(res);
+  return 0;
+}
+
+int jitApp(RunMode mode) {
   // 1. Initialize the native target info for JIT execution
   InitializeNativeTarget();
   InitializeNativeTargetAsmPrinter();
@@ -75,12 +94,15 @@ int jitApp() {
 
   // 3. Create an LLVM Module and an IR Builder
   auto M = std::make_unique<Module>("my_jit_module", *Context);
-  buildModule(M, Context);
+  buildModule2(M, Context);
 
   // (Optional) Print the generated IR to see what we made
   std::cout << "--- Generated LLVM IR ---" << std::endl;
   M->print(errs(), nullptr);
   std::cout << "-------------------------\n" << std::endl;
+  if (mode == OnlyFnGen) {
+    return 0;
+  }
 
   // optimize the module
   optimizeModule(*M);
@@ -88,6 +110,10 @@ int jitApp() {
   std::cout << "--- Optimized LLVM IR ---" << std::endl;
   M->print(errs(), nullptr);
   std::cout << "-------------------------\n" << std::endl;
+
+  if (mode == FnGenAndOpt) {
+    return 0;
+  }
 
 
   // 6. Hand over the module to the JIT compiler
