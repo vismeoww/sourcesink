@@ -135,8 +135,10 @@ int jitApp(RunMode mode) {
   auto *AddFnPtr = AddSymbol.toPtr<int (*)(int, int)>();
 
   // 8. Execute the dynamically generated function!
-  int result = AddFnPtr(27, 15);
-  std::cout << "Result of dynamically calling add(15, 27): " << result
+  int arg1 = 25;
+  int arg2 = 15;
+  int result = AddFnPtr(arg1, arg2);
+  std::cout << "Result of dynamically calling add("<<arg1<<", "<<arg2<< "): " << result
             << std::endl;
 
   return 0;
