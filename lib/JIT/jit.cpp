@@ -79,7 +79,14 @@ int buildModule2(std::unique_ptr<Module> &M,
   Expr lhs = fgen.getArg(0);
   Expr rhs = fgen.getArg(1);
   Expr res = lhs + rhs;
-  fgen.Return(res);
+  Expr cond = lhs > rhs;
+  fgen.IfBlock(cond);
+  Expr res2 = lhs * rhs;
+  fgen.ElseBlock();
+  Expr res3 = lhs - rhs;
+  fgen.EndIfBlock();
+  Expr res4 = fgen.createPhi(res2, res3);
+  fgen.Return(res4);
   return 0;
 }
 
@@ -122,13 +129,13 @@ int jitApp(RunMode mode) {
       JIT->addIRModule(ThreadSafeModule(std::move(M), std::move(Context))));
 
   // 7. Look up the compiled function's memory address
-  auto AddSymbol = checkError(JIT->lookup("add"));
+  auto AddSymbol = checkError(JIT->lookup("fnfn"));
 
   // Cast the raw address to a standard C++ function pointer
   auto *AddFnPtr = AddSymbol.toPtr<int (*)(int, int)>();
 
   // 8. Execute the dynamically generated function!
-  int result = AddFnPtr(15, 27);
+  int result = AddFnPtr(27, 15);
   std::cout << "Result of dynamically calling add(15, 27): " << result
             << std::endl;
 

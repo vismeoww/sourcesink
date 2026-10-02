@@ -2,6 +2,7 @@
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Type.h"
+#include "llvm/IR/BasicBlock.h"
 
 namespace fngen {
 
@@ -32,18 +33,18 @@ public:
 };
 
 
-enum ArithOp {
-  Add,
-  Sub,
-  Mul,
-  Div,
-  Mod,
-};
 
+struct BlockStackItem {
+  llvm::BasicBlock* thenBB;
+  llvm::BasicBlock* elseBB;
+  llvm::BasicBlock* mergeBB;
+  llvm::Instruction* condBr;
+};
 
 class FunctionGen {
   llvm::IRBuilder<llvm::ConstantFolder, llvm::IRBuilderDefaultInserter>
       *builder;
+  llvm::SmallVector<BlockStackItem, 8> blockStack;
   llvm::Function *fnPtr;
   llvm::BasicBlock *currentBB = nullptr;
 
@@ -54,6 +55,11 @@ public:
 
   Expr getArg(int i);
   void Return(Expr& expr);
+  void IfBlock(Expr& cond);
+  void ElseBlock();
+  void ElseIfBlock(Expr& cond);
+  void EndIfBlock();
+  Expr createPhi(Expr& lhs, Expr& rhs);
   llvm::IRBuilder<>& getBuilder() { return *builder; }
 };
 
@@ -82,6 +88,60 @@ inline Expr operator*(Symbol& lhs, Symbol& rhs){
 inline Expr operator/(Symbol& lhs, Symbol& rhs){
   fngen::FunctionGen& parent = lhs.getParent();
   llvm::Value* res = parent.getBuilder().CreateSDiv(lhs.getValue(), rhs.getValue());
+  return fngen::Expr(res, parent);
+}
+
+inline Expr operator&&(Symbol& lhs, Symbol& rhs){
+  fngen::FunctionGen& parent = lhs.getParent();
+  llvm::Value* res = parent.getBuilder().CreateAnd(lhs.getValue(), rhs.getValue());
+  return fngen::Expr(res, parent);
+}
+
+inline Expr operator||(Symbol& lhs, Symbol& rhs){
+  fngen::FunctionGen& parent = lhs.getParent();
+  llvm::Value* res = parent.getBuilder().CreateOr(lhs.getValue(), rhs.getValue());
+  return fngen::Expr(res, parent);
+}
+
+inline Expr operator!(Symbol& lhs){
+  fngen::FunctionGen& parent = lhs.getParent();
+  llvm::Value* res = parent.getBuilder().CreateNot(lhs.getValue());
+  return fngen::Expr(res, parent);
+}
+
+inline Expr operator==(Symbol& lhs, Symbol& rhs){
+  fngen::FunctionGen& parent = lhs.getParent();
+  llvm::Value* res = parent.getBuilder().CreateICmpEQ(lhs.getValue(), rhs.getValue());
+  return fngen::Expr(res, parent);
+}
+
+inline Expr operator!=(Symbol& lhs, Symbol& rhs){
+  fngen::FunctionGen& parent = lhs.getParent();
+  llvm::Value* res = parent.getBuilder().CreateICmpNE(lhs.getValue(), rhs.getValue());
+  return fngen::Expr(res, parent);
+}
+
+inline Expr operator<(Symbol& lhs, Symbol& rhs){
+  fngen::FunctionGen& parent = lhs.getParent();
+  llvm::Value* res = parent.getBuilder().CreateICmpSLT(lhs.getValue(), rhs.getValue());
+  return fngen::Expr(res, parent);
+}
+
+inline Expr operator<=(Symbol& lhs, Symbol& rhs){
+  fngen::FunctionGen& parent = lhs.getParent();
+  llvm::Value* res = parent.getBuilder().CreateICmpSLE(lhs.getValue(), rhs.getValue());
+  return fngen::Expr(res, parent);
+}
+
+inline Expr operator>(Symbol& lhs, Symbol& rhs){
+  fngen::FunctionGen& parent = lhs.getParent();
+  llvm::Value* res = parent.getBuilder().CreateICmpSGT(lhs.getValue(), rhs.getValue());
+  return fngen::Expr(res, parent);
+}
+
+inline Expr operator>=(Symbol& lhs, Symbol& rhs){
+  fngen::FunctionGen& parent = lhs.getParent();
+  llvm::Value* res = parent.getBuilder().CreateICmpSGE(lhs.getValue(), rhs.getValue());
   return fngen::Expr(res, parent);
 }
 
