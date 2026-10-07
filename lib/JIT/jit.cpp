@@ -79,14 +79,23 @@ int buildModule2(std::unique_ptr<Module> &M,
   Expr lhs = fgen.getArg(0);
   Expr rhs = fgen.getArg(1);
   Expr res = lhs + rhs;
+  Variable& var = fgen.createVar("var", Int32Ty);
   Expr cond = lhs > rhs;
   fgen.IfBlock(cond);
   Expr res2 = lhs * rhs;
+  Expr varload = fgen.load(var);
+  Expr varupdated = res2;
+  fgen.store(var, varupdated);
   fgen.ElseBlock();
   Expr res3 = lhs - rhs;
+  Expr varload2 = fgen.load(var);
+  Expr varupdated2 = res3;
+  fgen.store(var, varupdated2);
   fgen.EndIfBlock();
   Expr res4 = fgen.createPhi(res2, res3);
-  fgen.Return(res4);
+  Expr res5 = fgen.load(var);
+  Expr res6 = res4 + res5;
+  fgen.Return(res6);
   return 0;
 }
 

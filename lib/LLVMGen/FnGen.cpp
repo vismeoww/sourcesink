@@ -6,7 +6,7 @@ fngen::Expr::Expr(llvm::Value *value, llvm::Type *type, FunctionGen &parent)
 fngen::Expr::Expr(llvm::Value *value, FunctionGen &parent)
     : Symbol(value, parent, parent.getCurrentBB()) {}
 
-fngen::Expr::Expr(FunctionGen &parent) : Symbol(parent, parent.getCurrentBB()) {}
+// fngen::Expr::Expr(FunctionGen &parent) : Symbol(parent, parent.getCurrentBB()) {}
 
 llvm::Value *fngen::Expr::eval() { return getValue(); }
 
@@ -74,5 +74,21 @@ fngen::Expr fngen::FunctionGen::createPhi(Expr& lhs, Expr& rhs) {
   phi->addIncoming(lhs.eval(), lhs.getBB());
   phi->addIncoming(rhs.eval(), rhs.getBB());
   return fngen::Expr(phi, *this);
+}
+
+fngen::Expr fngen::FunctionGen::load(Variable& var) {
+  auto* value = builder->CreateLoad(var.getType(),var.getAddress());
+  return fngen::Expr(value, *this);
+}
+
+void fngen::FunctionGen::store(Variable& var, Expr& value) {
+  builder->CreateStore(value.eval(), var.getAddress());
+}
+
+fngen::Variable& fngen::FunctionGen::createVar(std::string name, llvm::Type* type) {
+  auto* entry = builder->GetInsertBlock();
+  auto* alloca = builder->CreateAlloca(type, nullptr, name);
+  auto [it, inserted] = variables.try_emplace(name, alloca, type, *this);
+  return it->second;
 }
 
