@@ -21,6 +21,16 @@ void fngen::Variable::store(Expr& expr) {
   builder.CreateStore(expr.eval(), getAddress());
 }
 
+void fngen::Variable::store(Symbol& expr) {
+  auto& builder = getParent().getBuilder();
+  builder.CreateStore(expr.getValue(), getAddress());
+}
+
+void fngen::Variable::store(Const& expr) {
+  auto& builder = getParent().getBuilder();
+  builder.CreateStore(expr.getValue(), getAddress());
+}
+
 fngen::FunctionGen::FunctionGen(
     llvm::IRBuilder<llvm::ConstantFolder, llvm::IRBuilderDefaultInserter>
         *builder,
@@ -94,4 +104,20 @@ fngen::Variable& fngen::FunctionGen::createVar(std::string name, llvm::Type* typ
   return it->second;
 }
 
+fngen::Const fngen::FunctionGen::getInt(int64_t  val, llvm::Type* type){
+  if(!type) {
+    type = llvm::Type::getInt32Ty(builder->getContext());
+  }
+  return Const(llvm::ConstantInt::get(type, val), type, *this);
+}
+
+fngen::Const fngen::FunctionGen::getTrue() {
+  auto type = llvm::Type::getInt1Ty(builder->getContext());
+  return Const(llvm::ConstantInt::getTrue(type), type, *this);
+}
+
+fngen::Const fngen::FunctionGen::getFalse() {
+  auto type = llvm::Type::getInt1Ty(builder->getContext());
+  return Const(llvm::ConstantInt::getFalse(type), type, *this);
+}
 

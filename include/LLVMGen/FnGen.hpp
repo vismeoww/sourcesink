@@ -40,17 +40,35 @@ public:
   llvm::Value* eval();
 };
 
+class Const;
 class Variable : public Symbol {
   llvm::AllocaInst* address;
   public:
   Variable(llvm::AllocaInst* address, llvm::Type* type, FunctionGen& parent) : Symbol(nullptr, type, parent), address(address) {}
   llvm::AllocaInst* getAddress() { return address; }
   Expr load();
+  // void store(Expr& expr);
+  void store(Symbol& expr);
   void store(Expr& expr);
+  void store(Const& expr);
+  Variable& operator=(Symbol& expr) {
+    store(expr);
+    return *this;
+  }
   Variable& operator=(Expr& expr) {
     store(expr);
     return *this;
   }
+  Variable& operator=(Const& expr) {
+    store(expr);
+    return *this;
+  }
+};
+
+class Const : public Expr {
+public:
+  Const(llvm::Value* value, llvm::Type* type, FunctionGen& parent): Expr(value,type,parent) {}
+  Const(llvm::Value* value, FunctionGen& parent): Expr(value, parent) {}
 };
 
 
@@ -83,10 +101,14 @@ public:
   void ElseIfBlock(Expr& cond);
   void EndIfBlock();
   Expr createPhi(Expr& lhs, Expr& rhs);
-  // Expr load(Variable& var);
-  // void store(Variable& var, Expr& expr);
+  // for variables
   Variable& createVar(std::string name, llvm::Type* type);
   Variable& getVariable(std::string name);
+  // for constants
+  Const getInt(int64_t val, llvm::Type* type = nullptr);
+  Const getTrue();
+  Const getFalse();
+
 };
 
 
