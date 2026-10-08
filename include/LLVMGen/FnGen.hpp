@@ -22,20 +22,12 @@ class Symbol{
 
   Symbol(llvm::Value* value, llvm::Type* type, FunctionGen& parent): value(value), type(type), parent(parent), bb(nullptr) {}
   Symbol(llvm::Value* value, FunctionGen& parent): value(value), type(value->getType()), parent(parent) {}
-  // Symbol(FunctionGen& parent, llvm::BasicBlock* bb): value(nullptr), type(nullptr), parent(parent), bb(bb) {}
-  // Symbol(FunctionGen& parent): value(nullptr), type(nullptr), parent(parent) {}
   FunctionGen& getParent() { return parent; }
   llvm::Value* getValue() { return value; }
   llvm::BasicBlock* getBB() { return bb; }
   llvm::Type* getType() { return type; }
 };
 
-class Variable : public Symbol {
-  llvm::AllocaInst* address;
-  public:
-  Variable(llvm::AllocaInst* address, llvm::Type* type, FunctionGen& parent) : Symbol(nullptr, type, parent), address(address) {}
-  llvm::AllocaInst* getAddress() { return address; }
-};
 
 class Expr;
 using ExprPtr = std::unique_ptr<Expr>;
@@ -48,6 +40,18 @@ public:
   llvm::Value* eval();
 };
 
+class Variable : public Symbol {
+  llvm::AllocaInst* address;
+  public:
+  Variable(llvm::AllocaInst* address, llvm::Type* type, FunctionGen& parent) : Symbol(nullptr, type, parent), address(address) {}
+  llvm::AllocaInst* getAddress() { return address; }
+  Expr load();
+  void store(Expr& expr);
+  Variable& operator=(Expr& expr) {
+    store(expr);
+    return *this;
+  }
+};
 
 
 struct BlockStackItem {
@@ -79,8 +83,8 @@ public:
   void ElseIfBlock(Expr& cond);
   void EndIfBlock();
   Expr createPhi(Expr& lhs, Expr& rhs);
-  Expr load(Variable& var);
-  void store(Variable& var, Expr& expr);
+  // Expr load(Variable& var);
+  // void store(Variable& var, Expr& expr);
   Variable& createVar(std::string name, llvm::Type* type);
   Variable& getVariable(std::string name);
 };
