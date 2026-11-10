@@ -18,29 +18,35 @@
 
 #include "LLVMGen/Opt.hpp"
 
-#include "LLVMGen/FnGen.hpp"
+#include "LLVMGen/FuncGen.hpp"
 
 using namespace llvm;
 using namespace llvm::orc;
 
 // A helper function to handle LLVM Expected<T> errors cleanly
-template <typename T> T checkError(Expected<T> Val) {
-  if (!Val) {
+template <typename T>
+T checkError(Expected<T> Val)
+{
+  if (!Val)
+  {
     errs() << "LLVM Error: " << Val.takeError() << "\n";
     exit(1);
   }
   return std::move(*Val);
 }
 
-void checkError(Error Err) {
-  if (Err) {
+void checkError(Error Err)
+{
+  if (Err)
+  {
     errs() << "LLVM Error: " << Err << "\n";
     exit(1);
   }
 }
 
 int buildModule(std::unique_ptr<Module> &M,
-                std::unique_ptr<llvm::LLVMContext> &Context) {
+                std::unique_ptr<llvm::LLVMContext> &Context)
+{
   IRBuilder<> Builder(*Context);
   // 4. Define the function signature: int add(int a, int b)
   Type *Int32Ty = Builder.getInt32Ty();
@@ -67,40 +73,25 @@ int buildModule(std::unique_ptr<Module> &M,
 }
 
 int buildModule2(std::unique_ptr<Module> &M,
-                std::unique_ptr<llvm::LLVMContext> &Context) {
+                 std::unique_ptr<llvm::LLVMContext> &Context)
+{
   IRBuilder<> Builder(*Context);
   Type *Int32Ty = Builder.getInt32Ty();
   FunctionType *FuncTy = FunctionType::get(Int32Ty, {Int32Ty, Int32Ty}, false);
   Function *AddFunc =
       Function::Create(FuncTy, Function::ExternalLinkage, "fnfn", M.get());
 
-  using namespace fngen;
+  using namespace funcgen;
   FunctionGen fgen(&Builder, AddFunc);
-  Expr lhs = fgen.getArg(0);
-  Expr rhs = fgen.getArg(1);
-  Expr res = lhs + rhs;
-  Variable& var = fgen.createVar("var", Int32Ty);
-  Const c = fgen.getInt(10);
-  var = c;
-  // Expr cond = lhs > rhs;
-  fgen.IfBlock(lhs > rhs);
-    Expr res2 = lhs * rhs;
-    Const c2 = fgen.getInt(20);
-    var = c2;
-  fgen.ElseIfBlock(lhs < rhs);
-     Expr resx = lhs + lhs;
-  fgen.ElseBlock();
-    Expr res3 = lhs - rhs;
-    var = res3;
-  fgen.EndIfBlock();
-  Expr res4 = fgen.createPhi(res2, res3);
-  Expr res5 = var.load();
-  Expr res6 = res4 + res5;
-  fgen.Return(res6);
+  auto lhs = fgen.getArg(0);
+  auto rhs = fgen.getArg(1);
+  auto res = lhs + rhs;
+  fgen.Return(res);
   return 0;
 }
 
-int jitApp(RunMode mode) {
+int jitApp(RunMode mode)
+{
   // 1. Initialize the native target info for JIT execution
   InitializeNativeTarget();
   InitializeNativeTargetAsmPrinter();
@@ -116,8 +107,10 @@ int jitApp(RunMode mode) {
   // (Optional) Print the generated IR to see what we made
   std::cout << "--- Generated LLVM IR ---" << std::endl;
   M->print(errs(), nullptr);
-  std::cout << "-------------------------\n" << std::endl;
-  if (mode == OnlyFnGen) {
+  std::cout << "-------------------------\n"
+            << std::endl;
+  if (mode == OnlyFnGen)
+  {
     return 0;
   }
 
@@ -126,12 +119,13 @@ int jitApp(RunMode mode) {
 
   std::cout << "--- Optimized LLVM IR ---" << std::endl;
   M->print(errs(), nullptr);
-  std::cout << "-------------------------\n" << std::endl;
+  std::cout << "-------------------------\n"
+            << std::endl;
 
-  if (mode == FnGenAndOpt) {
+  if (mode == FnGenAndOpt)
+  {
     return 0;
   }
-
 
   // 6. Hand over the module to the JIT compiler
   // ThreadSafeModule wraps the module and its context together safely
@@ -148,7 +142,7 @@ int jitApp(RunMode mode) {
   int arg1 = 25;
   int arg2 = 15;
   int result = AddFnPtr(arg1, arg2);
-  std::cout << "Result of dynamically calling add("<<arg1<<", "<<arg2<< "): " << result
+  std::cout << "Result of dynamically calling add(" << arg1 << ", " << arg2 << "): " << result
             << std::endl;
 
   return 0;
