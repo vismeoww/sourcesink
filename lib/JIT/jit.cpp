@@ -82,11 +82,13 @@ int buildModule2(std::unique_ptr<Module> &M,
   Variable& var = fgen.createVar("var", Int32Ty);
   Const c = fgen.getInt(10);
   var = c;
-  Expr cond = lhs > rhs;
-  fgen.IfBlock(cond);
+  // Expr cond = lhs > rhs;
+  fgen.IfBlock(lhs > rhs);
     Expr res2 = lhs * rhs;
     Const c2 = fgen.getInt(20);
     var = c2;
+  fgen.ElseIfBlock(lhs < rhs);
+     Expr resx = lhs + lhs;
   fgen.ElseBlock();
     Expr res3 = lhs - rhs;
     var = res3;

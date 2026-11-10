@@ -6,10 +6,6 @@ fngen::Expr::Expr(llvm::Value *value, llvm::Type *type, FunctionGen &parent)
 fngen::Expr::Expr(llvm::Value *value, FunctionGen &parent)
     : Symbol(value, parent, parent.getCurrentBB()) {}
 
-// fngen::Expr::Expr(FunctionGen &parent) : Symbol(parent, parent.getCurrentBB()) {}
-
-llvm::Value *fngen::Expr::eval() { return getValue(); }
-
 fngen::Expr fngen::Variable::load() {
   auto& builder = getParent().getBuilder();
   llvm::Value* value = builder.CreateLoad(getType(), getAddress());
@@ -48,9 +44,9 @@ fngen::Expr fngen::FunctionGen::getArg(int i) {
   return Expr(fnPtr->getArg(i), *this);
 }
 
-void fngen::FunctionGen::Return(Expr &expr) { builder->CreateRet(expr.eval()); }
+void fngen::FunctionGen::Return(const Expr &expr) { builder->CreateRet(expr.eval()); }
 
-void fngen::FunctionGen::IfBlock(Expr &cond) {
+void fngen::FunctionGen::IfBlock(const Expr &cond) {
   auto& Context = builder->GetInsertBlock()->getContext();
 
   auto *thenBB = llvm::BasicBlock::Create(Context, "then", fnPtr);
@@ -73,6 +69,27 @@ void fngen::FunctionGen::ElseBlock() {
   Ctx.condBr->setSuccessor(1, Ctx.elseBB);
   builder->SetInsertPoint(Ctx.elseBB);
   currentBB = Ctx.elseBB;
+}
+
+void fngen::FunctionGen::ElseIfBlock(const Expr& cond){
+  auto& Ctx = blockStack.back();
+  blockStack.pop_back();
+  auto& Context = builder->GetInsertBlock()->getContext();
+  builder->SetInsertPoint(Ctx.thenBB);
+  if(!Ctx.thenBB->hasTerminator()){
+    builder->CreateBr(Ctx.mergeBB);
+  }
+  auto *checkBB = llvm::BasicBlock::Create(Context, "elif-check", fnPtr);
+  checkBB->moveBefore(Ctx.mergeBB);
+  auto *elifThenBB = llvm::BasicBlock::Create(Context, "elif-then", fnPtr);
+  elifThenBB->moveBefore(Ctx.mergeBB);
+  Ctx.condBr->setSuccessor(1,checkBB);
+  builder->SetInsertPoint(checkBB);
+  currentBB = checkBB;
+  auto *newCondBr = builder->CreateCondBr(cond.eval(),elifThenBB,Ctx.mergeBB);
+  builder->SetInsertPoint(elifThenBB);
+  blockStack.push_back({elifThenBB, nullptr, Ctx.mergeBB, newCondBr});
+  currentBB = elifThenBB;
 }
 
 void fngen::FunctionGen::EndIfBlock() {

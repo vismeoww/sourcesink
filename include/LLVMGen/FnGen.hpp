@@ -22,10 +22,10 @@ class Symbol{
 
   Symbol(llvm::Value* value, llvm::Type* type, FunctionGen& parent): value(value), type(type), parent(parent), bb(nullptr) {}
   Symbol(llvm::Value* value, FunctionGen& parent): value(value), type(value->getType()), parent(parent) {}
-  FunctionGen& getParent() { return parent; }
-  llvm::Value* getValue() { return value; }
-  llvm::BasicBlock* getBB() { return bb; }
-  llvm::Type* getType() { return type; }
+  FunctionGen& getParent() const { return parent; }
+  llvm::Value* getValue() const { return value; }
+  llvm::BasicBlock* getBB() const { return bb; }
+  llvm::Type* getType() const { return type; }
 };
 
 
@@ -34,10 +34,9 @@ using ExprPtr = std::unique_ptr<Expr>;
 class Expr : public Symbol {
 
 public:
-  Expr(llvm::Value* value, llvm::Type* type, FunctionGen& parent);//: Symbol(value, type, parent) {}
-  Expr(llvm::Value* value, FunctionGen& parent);//: Symbol(value, parent) {}
-  // Expr(FunctionGen& parent);//: Symbol(parent) {}
-  llvm::Value* eval();
+  Expr(llvm::Value* value, llvm::Type* type, FunctionGen& parent);
+  Expr(llvm::Value* value, FunctionGen& parent);
+  llvm::Value* eval() const {return getValue(); }
 };
 
 class Const;
@@ -95,11 +94,15 @@ public:
   llvm::IRBuilder<>& getBuilder() { return *builder; }
   llvm::BasicBlock* getCurrentBB() { return currentBB; }
   Expr getArg(int i);
-  void Return(Expr& expr);
-  void IfBlock(Expr& cond);
+  void Return(const Expr& expr);
+  void IfBlock(const Expr& cond);
   void ElseBlock();
-  void ElseIfBlock(Expr& cond);
+  void ElseIfBlock(const Expr& cond);
   void EndIfBlock();
+  void WhileBlock(const Expr& cond);
+  void EndWhileBlock();
+  void Break();
+  void Continue();
   Expr createPhi(Expr& lhs, Expr& rhs);
   // for variables
   Variable& createVar(std::string name, llvm::Type* type);
