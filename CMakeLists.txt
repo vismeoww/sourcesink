@@ -64,9 +64,9 @@ add_library(lib
   # LLVMGen
   lib/LLVMGen/Gen.cpp
   lib/LLVMGen/Util.cpp
-  lib/LLVMGen/FnGen.cpp
+  lib/LLVMGen/FuncGen.cpp
   lib/LLVMGen/Opt.cpp
-  lib/LLVMGen/Expr.cpp
+  # lib/LLVMGen/Expr.cpp
 )
 
 add_dependencies(lib MLIRStreamIncGen)

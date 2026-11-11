@@ -14,9 +14,6 @@ enum class OpKind {
   EQ, NE, SLT, SLE, SGT, SGE
 };
 
-class Expr;
-using ExprPtr = std::shared_ptr<Expr>;
-
 class FunctionGen;
 
 class Expr {
@@ -26,6 +23,7 @@ protected:
 
 public:
   Expr(FunctionGen& parent) : parent(parent) {}
+  Expr(FunctionGen& parent, llvm::Value* val): parent(parent), cachedValue(val) {}
   virtual ~Expr() = default;
 
   FunctionGen& getParent() const { return parent; }
@@ -39,8 +37,12 @@ public:
     }
     return cachedValue;
   }
+  llvm::Type* getType() const {
+    return getValue()->getType();
+  }
 };
 
+using ExprPtr = std::shared_ptr<Expr>;
 
 // Leaf node wrapping an existing llvm::Value* (e.g. function args, already loaded values)
 class ValueExpr : public Expr {
@@ -52,6 +54,17 @@ public:
   llvm::Value* eval() const override {
     return val;
   }
+};
+
+
+class ConstantExpr : public Expr {
+  llvm::Constant* c;
+public:
+  ConstantExpr(llvm::Constant* constVal, FunctionGen& parent): Expr(parent) ,c(constVal) {}
+  llvm::Value* eval() const override {
+    return c;
+  }
+  llvm::Constant* getConst() const {return c;}
 };
 
 struct BlockStackItem {
@@ -90,7 +103,45 @@ public:
   // ExprPtr createPhi(ExprPtr& lhs, ExprPtr& rhs);
   // for variables
   Variable& createVar(std::string name, llvm::Type* type);
+  Variable& createVar(std::string name, ExprPtr& e);
   Variable& getVariable(std::string name);
+  // constants
+  // Integers
+  ExprPtr getInt(int64_t val, unsigned bitWidth = 32, bool isSigned = true) {
+    auto* ty = llvm::IntegerType::get(getBuilder().getContext(), bitWidth);
+    auto* c = llvm::ConstantInt::get(ty, val, isSigned);
+    return std::make_shared<ConstantExpr>(c, *this);
+  }
+
+  ExprPtr getInt32(int32_t val) { return getInt(val, 32, true); }
+  ExprPtr getInt64(int64_t val) { return getInt(val, 64, true); }
+  ExprPtr getInt8(int8_t val)   { return getInt(val, 8, true); }
+
+  // Booleans
+  ExprPtr getBool(bool val) {
+    auto* c = llvm::ConstantInt::getBool(getBuilder().getContext(), val);
+    return std::make_shared<ConstantExpr>(c, *this);
+  }
+  ExprPtr getTrue()  { return getBool(true); }
+  ExprPtr getFalse() { return getBool(false); }
+
+  // Floats
+  ExprPtr getFloat(float val) {
+    auto* ty = llvm::Type::getFloatTy(getBuilder().getContext());
+    auto* c = llvm::ConstantFP::get(ty, val);
+    return std::make_shared<ConstantExpr>(c, *this);
+  }
+
+  ExprPtr getDouble(double val) {
+    auto* ty = llvm::Type::getDoubleTy(getBuilder().getContext());
+    auto* c = llvm::ConstantFP::get(ty, val);
+    return std::make_shared<ConstantExpr>(c, *this);
+  }
+
+  // Generic raw LLVM constant wrapper
+  ExprPtr getConstant(llvm::Constant* c) {
+    return std::make_shared<ConstantExpr>(c, *this);
+  }
 };
 
 
@@ -168,27 +219,62 @@ class Variable {
   public:
   Variable(llvm::AllocaInst* address, llvm::Type* type, FunctionGen& parent): 
     parent(parent), type(type), address(address) {}
-  llvm::AllocaInst* getAddress() { return address; }
-  Expr load();
+  llvm::AllocaInst* getAddress() const { return address; }
+  llvm::Type* getType() const {return type;}
+  FunctionGen& getParent() const {return parent;}
+  const ExprPtr load();
   // void store(Expr& expr);
-  void store(Expr& expr);
-  Variable& operator=(Expr& expr) {
+  void store(const ExprPtr& expr);
+  Variable& operator=(const ExprPtr& expr) {
     store(expr);
     return *this;
   }
 };
 
 
+
 inline ExprPtr operator+(const ExprPtr& lhs, const ExprPtr& rhs) {
   return std::make_shared<BinExpr>(lhs, rhs, OpKind::ADD, lhs->getParent());
+}
+
+inline ExprPtr operator-(const ExprPtr& lhs, const ExprPtr& rhs) {
+  return std::make_shared<BinExpr>(lhs, rhs, OpKind::SUB, lhs->getParent());
+}
+
+inline ExprPtr operator*(const ExprPtr& lhs, const ExprPtr& rhs) {
+  return std::make_shared<BinExpr>(lhs, rhs, OpKind::MUL, lhs->getParent());
+}
+
+inline ExprPtr operator/(const ExprPtr& lhs, const ExprPtr& rhs) {
+  return std::make_shared<BinExpr>(lhs, rhs, OpKind::SDIV, lhs->getParent());
 }
 
 inline ExprPtr operator==(const ExprPtr& lhs, const ExprPtr& rhs) {
   return std::make_shared<BinExpr>(lhs, rhs, OpKind::EQ, lhs->getParent());
 }
 
+inline ExprPtr operator!=(const ExprPtr& lhs, const ExprPtr& rhs) {
+  return std::make_shared<BinExpr>(lhs, rhs, OpKind::NE, lhs->getParent());
+}
+
 inline ExprPtr operator!(const ExprPtr& operand) {
   return std::make_shared<UnaryExpr>(operand, OpKind::NOT, operand->getParent());
+}
+
+inline ExprPtr operator<(const ExprPtr& lhs, const ExprPtr& rhs) {
+  return std::make_shared<BinExpr>(lhs, rhs, OpKind::SLT, lhs->getParent());
+}
+
+inline ExprPtr operator<=(const ExprPtr& lhs, const ExprPtr& rhs) {
+  return std::make_shared<BinExpr>(lhs, rhs, OpKind::SLE, lhs->getParent());
+}
+
+inline ExprPtr operator>(const ExprPtr& lhs, const ExprPtr& rhs) {
+  return std::make_shared<BinExpr>(lhs, rhs, OpKind::SGT, lhs->getParent());
+}
+
+inline ExprPtr operator>=(const ExprPtr& lhs, const ExprPtr& rhs) {
+  return std::make_shared<BinExpr>(lhs, rhs, OpKind::SGE, lhs->getParent());
 }
 
 }

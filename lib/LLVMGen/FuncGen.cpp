@@ -78,8 +78,24 @@ void funcgen::FunctionGen::EndIfBlock() {
 }
 
 funcgen::Variable& funcgen::FunctionGen::createVar(std::string name, llvm::Type* type) {
-  auto* entry = builder->GetInsertBlock();
   auto* alloca = builder->CreateAlloca(type, nullptr, name);
   auto [it, inserted] = variables.try_emplace(name, alloca, type, *this);
   return it->second;
+}
+
+funcgen::Variable& funcgen::FunctionGen::createVar(std::string name, ExprPtr& e) {
+  llvm::Type* t = e->getType();
+  auto* alloca = builder->CreateAlloca(t, nullptr, name);
+  auto [it, inserted] = variables.try_emplace(name, alloca, t, *this);
+  it->second.store(e);
+  return it->second;
+}
+
+const funcgen::ExprPtr funcgen::Variable::load() {
+    return std::make_unique<LoadExpr>(address, getType(), getParent());
+}
+
+void funcgen::Variable::store(const ExprPtr& expr) {
+    llvm::Value* val = expr->eval();
+    parent.getBuilder().CreateStore(val, address);
 }

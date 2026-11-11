@@ -85,8 +85,12 @@ int buildModule2(std::unique_ptr<Module> &M,
   FunctionGen fgen(&Builder, AddFunc);
   auto lhs = fgen.getArg(0);
   auto rhs = fgen.getArg(1);
-  auto res = lhs + rhs;
-  fgen.Return(res);
+  auto v = fgen.createVar("v", lhs);
+  fgen.IfBlock(lhs > fgen.getInt32(10));
+  v = v.load() + (rhs + fgen.getInt32(2));
+  fgen.EndIfBlock();
+  v = v.load() + rhs;
+  fgen.Return(v.load());
   return 0;
 }
 
