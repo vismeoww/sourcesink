@@ -27,54 +27,61 @@ void funcgen::FunctionGen::IfBlock(const ExprPtr &cond) {
 
   auto *condBr = builder->CreateCondBr(cond->eval(), thenBB, mergeBB);
   builder->SetInsertPoint(thenBB);
-  blockStack.push_back({thenBB, nullptr, mergeBB, condBr});
+  blockStack.push_back(IfBlockItem{thenBB, nullptr, mergeBB, condBr});
   currentBB = thenBB;
 }
 
 void funcgen::FunctionGen::ElseBlock() {
-  auto& Ctx = blockStack.back();
+  assert(!blockStack.empty() && "Else called when the block stack is empty");
+  //auto IfItem = blockStack.back();
+  auto* Ctx = std::get_if<IfBlockItem>(&blockStack.back());
+  assert(Ctx && "Cannot match else block with non-if blockstack item");
   auto& Context = builder->GetInsertBlock()->getContext();
   if(!builder->GetInsertBlock()->hasTerminator()){
-    builder->CreateBr(Ctx.mergeBB);
+    builder->CreateBr(Ctx->mergeBB);
   }
-  Ctx.elseBB = llvm::BasicBlock::Create(Context, "else", fnPtr);
-  Ctx.elseBB->moveBefore(Ctx.mergeBB);
-  Ctx.condBr->setSuccessor(1, Ctx.elseBB);
-  builder->SetInsertPoint(Ctx.elseBB);
-  currentBB = Ctx.elseBB;
+  Ctx->elseBB = llvm::BasicBlock::Create(Context, "else", fnPtr);
+  Ctx->elseBB->moveBefore(Ctx->mergeBB);
+  Ctx->condBr->setSuccessor(1, Ctx->elseBB);
+  builder->SetInsertPoint(Ctx->elseBB);
+  currentBB = Ctx->elseBB;
 }
 
 void funcgen::FunctionGen::ElseIfBlock(const ExprPtr& cond){
-  auto& Ctx = blockStack.back();
+  assert(!blockStack.empty() && "ElseIf called when the block stack is empty");
+  auto* Ctx = std::get_if<IfBlockItem>(&blockStack.back());
+  assert(Ctx && "Cannot match else-if block with non-if blockstack item");
   blockStack.pop_back();
   auto& Context = builder->GetInsertBlock()->getContext();
-  builder->SetInsertPoint(Ctx.thenBB);
-  if(!Ctx.thenBB->hasTerminator()){
-    builder->CreateBr(Ctx.mergeBB);
+  builder->SetInsertPoint(Ctx->thenBB);
+  if(!Ctx->thenBB->hasTerminator()){
+    builder->CreateBr(Ctx->mergeBB);
   }
   auto *checkBB = llvm::BasicBlock::Create(Context, "elif-check", fnPtr);
-  checkBB->moveBefore(Ctx.mergeBB);
+  checkBB->moveBefore(Ctx->mergeBB);
   auto *elifThenBB = llvm::BasicBlock::Create(Context, "elif-then", fnPtr);
-  elifThenBB->moveBefore(Ctx.mergeBB);
-  Ctx.condBr->setSuccessor(1,checkBB);
+  elifThenBB->moveBefore(Ctx->mergeBB);
+  Ctx->condBr->setSuccessor(1,checkBB);
   builder->SetInsertPoint(checkBB);
   currentBB = checkBB;
-  auto *newCondBr = builder->CreateCondBr(cond->eval(),elifThenBB,Ctx.mergeBB);
+  auto *newCondBr = builder->CreateCondBr(cond->eval(),elifThenBB,Ctx->mergeBB);
   builder->SetInsertPoint(elifThenBB);
-  blockStack.push_back({elifThenBB, nullptr, Ctx.mergeBB, newCondBr});
+  blockStack.push_back(IfBlockItem{elifThenBB, nullptr, Ctx->mergeBB, newCondBr});
   currentBB = elifThenBB;
 }
 
 void funcgen::FunctionGen::EndIfBlock() {
-  auto& Ctx = blockStack.back();
+  assert(!blockStack.empty() && "EndIf called when the block stack is empty");
+  auto* Ctx = std::get_if<IfBlockItem>(&blockStack.back());
+  assert(Ctx && "Cannot match endif block with non-if blockstack item");
   blockStack.pop_back();
   auto& Context = builder->GetInsertBlock()->getContext();
 
   if(!builder->GetInsertBlock()->hasTerminator()){
-    builder->CreateBr(Ctx.mergeBB);
+    builder->CreateBr(Ctx->mergeBB);
   }
 
-  builder->SetInsertPoint(Ctx.mergeBB);
+  builder->SetInsertPoint(Ctx->mergeBB);
 }
 
 funcgen::Variable& funcgen::FunctionGen::createVar(std::string name, llvm::Type* type) {

@@ -2,4 +2,4 @@
 
 #include "llvm/IR/Module.h"
 
-void optimizeModule(llvm::Module &M);
+void optimizeModule(llvm::Module &M, int optlevel = 2);

@@ -5,7 +5,9 @@
 
 #include "LLVMGen/Opt.hpp"
 
-void optimizeModule(llvm::Module &M) {
+#include <cassert>
+
+void optimizeModule(llvm::Module &M, int optlevel) {
     // 1. Create Analysis Managers
     llvm::LoopAnalysisManager LAM;
     llvm::FunctionAnalysisManager FAM;
@@ -23,7 +25,15 @@ void optimizeModule(llvm::Module &M) {
     PB.crossRegisterProxies(LAM, FAM, CGAM, MAM);
 
     // 4. Build the standard optimization pipeline (e.g., OptimizationLevel::O2)
-    llvm::ModulePassManager MPM = PB.buildPerModuleDefaultPipeline(llvm::OptimizationLevel::O2);
+    auto optLevel = llvm::OptimizationLevel::O0;
+    switch(optlevel){
+        case 0: optLevel = llvm::OptimizationLevel::O0; break;
+        case 1: optLevel = llvm::OptimizationLevel::O1; break;
+        case 2: optLevel = llvm::OptimizationLevel::O2; break;
+        case 3: optLevel = llvm::OptimizationLevel::O3; break;
+        default: assert(0 && "Optimization level should be between 0 and 3");
+    }
+    llvm::ModulePassManager MPM = PB.buildPerModuleDefaultPipeline(optLevel);
 
     // 5. Run the optimizations on your module!
     MPM.run(M, MAM);

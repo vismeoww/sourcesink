@@ -5,6 +5,7 @@
 #include "llvm/IR/BasicBlock.h"
 
 #include <unordered_map>
+#include <variant>
 
 namespace funcgen {
 
@@ -67,12 +68,20 @@ public:
   llvm::Constant* getConst() const {return c;}
 };
 
-struct BlockStackItem {
+struct IfBlockItem {
   llvm::BasicBlock* thenBB;
   llvm::BasicBlock* elseBB;
   llvm::BasicBlock* mergeBB;
   llvm::Instruction* condBr;
 };
+
+struct WhileBlockItem {
+  llvm::BasicBlock* condBB;
+  llvm::BasicBlock* bodyBB;
+  llvm::BasicBlock* afterBB;
+};
+
+using BlockStackItem = std::variant<IfBlockItem,WhileBlockItem>;
 
 class Variable;
 class FunctionGen {

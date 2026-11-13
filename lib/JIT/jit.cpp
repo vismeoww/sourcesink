@@ -86,8 +86,10 @@ int buildModule2(std::unique_ptr<Module> &M,
   auto lhs = fgen.getArg(0);
   auto rhs = fgen.getArg(1);
   auto v = fgen.createVar("v", lhs);
-  fgen.IfBlock(lhs > fgen.getInt32(10));
-  v = v.load() + (rhs + fgen.getInt32(2));
+  fgen.IfBlock(lhs > fgen.getInt32(20));
+    v = v.load() + (rhs + fgen.getInt32(2));
+  fgen.ElseIfBlock(lhs > fgen.getInt32(10));
+    v = v.load() + (rhs + fgen.getInt32(4));
   fgen.EndIfBlock();
   v = v.load() + rhs;
   fgen.Return(v.load());
@@ -119,7 +121,7 @@ int jitApp(RunMode mode)
   }
 
   // optimize the module
-  optimizeModule(*M);
+  optimizeModule(*M,3);
 
   std::cout << "--- Optimized LLVM IR ---" << std::endl;
   M->print(errs(), nullptr);
