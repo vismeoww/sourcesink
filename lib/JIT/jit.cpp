@@ -96,6 +96,30 @@ int buildModule2(std::unique_ptr<Module> &M,
   return 0;
 }
 
+
+int buildModule3(std::unique_ptr<Module> &M,
+                 std::unique_ptr<llvm::LLVMContext> &Context)
+{
+  IRBuilder<> Builder(*Context);
+  Type *Int32Ty = Builder.getInt32Ty();
+  FunctionType *FuncTy = FunctionType::get(Int32Ty, {Int32Ty, Int32Ty}, false);
+  Function *AddFunc =
+      Function::Create(FuncTy, Function::ExternalLinkage, "fnfn", M.get());
+
+  using namespace funcgen;
+  FunctionGen fgen(&Builder, AddFunc);
+  auto lhs = fgen.getArg(0);
+  auto rhs = fgen.getArg(1);
+  auto i = fgen.createVar("i", fgen.getInt32(0));
+  auto sum = fgen.createVar("sum", fgen.getInt32(0));
+  fgen.WhileBlock(i.load() < rhs);
+  i = i.load() + lhs;
+  sum = sum.load() + i.load(); 
+  fgen.EndWhileBlock();
+  fgen.Return(sum.load());
+  return 0;
+}
+
 int jitApp(RunMode mode)
 {
   // 1. Initialize the native target info for JIT execution
@@ -108,7 +132,7 @@ int jitApp(RunMode mode)
 
   // 3. Create an LLVM Module and an IR Builder
   auto M = std::make_unique<Module>("my_jit_module", *Context);
-  buildModule2(M, Context);
+  buildModule3(M, Context);
 
   // (Optional) Print the generated IR to see what we made
   std::cout << "--- Generated LLVM IR ---" << std::endl;
@@ -145,10 +169,10 @@ int jitApp(RunMode mode)
   auto *AddFnPtr = AddSymbol.toPtr<int (*)(int, int)>();
 
   // 8. Execute the dynamically generated function!
-  int arg1 = 25;
-  int arg2 = 15;
+  int arg1 = 1;
+  int arg2 = 50;
   int result = AddFnPtr(arg1, arg2);
-  std::cout << "Result of dynamically calling add(" << arg1 << ", " << arg2 << "): " << result
+  std::cout << "Result of dynamically calling summer(" << arg1 << ", " << arg2 << "): " << result
             << std::endl;
 
   return 0;

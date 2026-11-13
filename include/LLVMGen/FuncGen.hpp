@@ -112,7 +112,7 @@ public:
   // ExprPtr createPhi(ExprPtr& lhs, ExprPtr& rhs);
   // for variables
   Variable& createVar(std::string name, llvm::Type* type);
-  Variable& createVar(std::string name, ExprPtr& e);
+  Variable& createVar(std::string name,const ExprPtr& e);
   Variable& getVariable(std::string name);
   // constants
   // Integers

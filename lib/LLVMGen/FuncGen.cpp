@@ -84,13 +84,53 @@ void funcgen::FunctionGen::EndIfBlock() {
   builder->SetInsertPoint(Ctx->mergeBB);
 }
 
+void funcgen::FunctionGen::WhileBlock(const ExprPtr &cond) {
+  auto& Context = builder->GetInsertBlock()->getContext();
+
+  auto *condBB = llvm::BasicBlock::Create(Context, "while.cond", fnPtr);
+  auto *bodyBB = llvm::BasicBlock::Create(Context, "while.body", fnPtr);
+  auto *afterBB = llvm::BasicBlock::Create(Context, "while.end", fnPtr);
+
+  builder->CreateBr(condBB);
+  builder->SetInsertPoint(condBB);
+
+  // Evaluate condition inside condBB so it re-evaluates on every iteration
+  builder->CreateCondBr(cond->eval(), bodyBB, afterBB);
+
+  builder->SetInsertPoint(bodyBB);
+  blockStack.push_back(WhileBlockItem{condBB, bodyBB, afterBB});
+  currentBB = bodyBB;
+}
+
+void funcgen::FunctionGen::EndWhileBlock() {
+  assert(!blockStack.empty() && "EndWhileBlock() called with empty block stack");
+
+  auto* whileItem = std::get_if<WhileBlockItem>(&blockStack.back());
+  assert(whileItem && "EndWhileBlock() called when top of stack is not a while block");
+
+  // 1. Only emit the back-edge branch to condBB if the current block
+  //    hasn't already been terminated (e.g., via Return(), Break(), or Continue()).
+  llvm::BasicBlock* insertBB = builder->GetInsertBlock();
+  if (insertBB && !insertBB->hasTerminator()) {
+    builder->CreateBr(whileItem->condBB);
+  }
+
+  // 2. Move the insertion point to afterBB for subsequent instructions
+  llvm::BasicBlock* afterBB = whileItem->afterBB;
+  builder->SetInsertPoint(afterBB);
+  currentBB = afterBB;
+
+  // 3. Pop the loop frame off the stack
+  blockStack.pop_back();
+}
+
 funcgen::Variable& funcgen::FunctionGen::createVar(std::string name, llvm::Type* type) {
   auto* alloca = builder->CreateAlloca(type, nullptr, name);
   auto [it, inserted] = variables.try_emplace(name, alloca, type, *this);
   return it->second;
 }
 
-funcgen::Variable& funcgen::FunctionGen::createVar(std::string name, ExprPtr& e) {
+funcgen::Variable& funcgen::FunctionGen::createVar(std::string name, const ExprPtr& e) {
   llvm::Type* t = e->getType();
   auto* alloca = builder->CreateAlloca(t, nullptr, name);
   auto [it, inserted] = variables.try_emplace(name, alloca, t, *this);
